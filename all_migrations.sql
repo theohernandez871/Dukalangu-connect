@@ -1,11 +1,13 @@
 -- =====================================================================
--- HOTSPOT BILLING SYSTEM — MIGRATIONS ZOTE (PHASE 1–4a)
+-- HOTSPOT BILLING SYSTEM — MIGRATIONS ZOTE (PHASE 1–4b)
 -- =====================================================================
 -- Bandika faili hili LOTE kwenye Supabase SQL Editor kisha bonyeza RUN.
--- Ni salama kuendesha mara nyingi (idempotent: if not exists / or replace).
+-- Ni salama kuendesha mara nyingi (idempotent).
 -- Mpangilio: Auth -> RLS -> Dashboard -> Branches -> Company RLS
---            -> Routers -> Routers RLS.
--- Toleo: v4 (imeongeza Phase 4a: routers, agents, credentials).
+--   -> Routers -> Routers RLS -> Commands -> Commands RLS -> Agent tokens.
+-- Toleo: v5 (imeongeza 4b: command queue, Vault encryption, agent tokens).
+-- MUHIMU: 4b inahitaji extensions "supabase_vault" na "pgcrypto"
+--         (SQL inaziwasha yenyewe kwa create extension if not exists).
 -- =====================================================================
 
 
@@ -771,4 +773,217 @@ create policy status_history_select on public.router_status_history
         and r.company_id = public.current_company_id()
     )
   );
+
+
+-- #####################################################################
+-- FROM: 0008_router_commands.sql
+-- #####################################################################
+
+-- =====================================================================
+-- PHASE 4b — AGENT PROTOCOL: command queue + credential encryption
+-- Transport: HTTP long-polling. Encryption: Supabase Vault.
+-- Dollar-quoting: kila function ina tag yake ya kipekee.
+-- =====================================================================
+
+-- ---------- Vault (encryption) --------------------------------------
+-- Supabase ships the `supabase_vault` extension. Secrets live outside
+-- the data tables; we store only the secret's UUID reference.
+create extension if not exists supabase_vault with schema vault;
+
+-- Replace plain-text column with a Vault secret reference.
+alter table public.router_credentials
+  add column if not exists secret_id uuid;
+
+-- Old column (password_enc) kept for compatibility; no longer written.
+-- New writes go through set_router_password() below.
+
+-- ---------- Command status enum -------------------------------------
+do $cmdenum$
+begin
+  if not exists (select 1 from pg_type where typname = 'router_command_status') then
+    create type public.router_command_status as enum
+      ('pending', 'running', 'done', 'failed', 'timeout');
+  end if;
+end;
+$cmdenum$;
+
+-- ---------- Router command queue ------------------------------------
+create table if not exists public.router_commands (
+  id            uuid primary key default gen_random_uuid(),
+  router_id     uuid not null references public.routers(id) on delete cascade,
+  company_id    uuid not null references public.companies(id) on delete cascade,
+  requested_by  uuid references auth.users(id) on delete set null,
+  command       text not null,             -- e.g. 'identity', 'ping', 'hotspot.list'
+  params        jsonb not null default '{}'::jsonb,
+  status        public.router_command_status not null default 'pending',
+  result        jsonb,
+  error         text,
+  created_at    timestamptz not null default now(),
+  started_at    timestamptz,
+  finished_at   timestamptz
+);
+
+create index if not exists idx_commands_router on public.router_commands(router_id, status);
+create index if not exists idx_commands_pending
+  on public.router_commands(router_id) where status = 'pending';
+
+-- ---------- Store a router password into Vault ----------------------
+-- SECURITY DEFINER so only this controlled path writes secrets.
+-- Returns nothing; the raw password never leaves the server.
+create or replace function public.set_router_password(p_router_id uuid, p_password text)
+returns void
+language plpgsql
+security definer
+set search_path = public, vault
+as $setpw$
+declare
+  _company    uuid;
+  _secret_id  uuid;
+  _secret_name text;
+begin
+  -- Verify the caller manages this router's company.
+  select company_id into _company from public.routers where id = p_router_id;
+  if _company is null or _company <> public.current_company_id() then
+    raise exception 'Router si ya kampuni yako';
+  end if;
+  if not public.is_company_admin() then
+    raise exception 'Hauna ruhusa';
+  end if;
+
+  _secret_name := 'router_' || p_router_id::text;
+
+  -- Create or update the Vault secret.
+  select secret_id into _secret_id from public.router_credentials where router_id = p_router_id;
+
+  if _secret_id is null then
+    _secret_id := vault.create_secret(p_password, _secret_name, 'RouterOS password');
+    insert into public.router_credentials (router_id, secret_id)
+    values (p_router_id, _secret_id)
+    on conflict (router_id) do update set secret_id = excluded.secret_id, updated_at = now();
+  else
+    perform vault.update_secret(_secret_id, p_password);
+    update public.router_credentials set updated_at = now() where router_id = p_router_id;
+  end if;
+end;
+$setpw$;
+
+-- ---------- Enqueue a command (client-facing, RLS-safe) -------------
+create or replace function public.enqueue_router_command(
+  p_router_id uuid,
+  p_command   text,
+  p_params    jsonb default '{}'::jsonb
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $enqueue$
+declare
+  _company uuid;
+  _id      uuid;
+begin
+  select company_id into _company from public.routers where id = p_router_id;
+  if _company is null or _company <> public.current_company_id() then
+    raise exception 'Router si ya kampuni yako';
+  end if;
+
+  insert into public.router_commands (router_id, company_id, requested_by, command, params)
+  values (p_router_id, _company, auth.uid(), p_command, p_params)
+  returning id into _id;
+
+  return _id;
+end;
+$enqueue$;
+
+
+-- #####################################################################
+-- FROM: 0009_commands_rls.sql
+-- #####################################################################
+
+-- =====================================================================
+-- PHASE 4b — RLS FOR ROUTER COMMANDS
+-- Clients read their company's commands; they enqueue only via the
+-- enqueue_router_command() function. Agents use service-role (bypass RLS).
+-- =====================================================================
+
+alter table public.router_commands enable row level security;
+
+-- Read command history / results for your company.
+drop policy if exists commands_select on public.router_commands;
+create policy commands_select on public.router_commands
+  for select
+  using (company_id = public.current_company_id());
+
+-- No direct INSERT/UPDATE policies: writes happen through
+-- enqueue_router_command() (SECURITY DEFINER) and the agent endpoints
+-- (service-role). This prevents clients from forging commands or
+-- writing arbitrary results.
+
+
+-- #####################################################################
+-- FROM: 0010_agent_tokens.sql
+-- #####################################################################
+
+-- =====================================================================
+-- PHASE 4b — AGENT TOKEN + POLL/REPORT SUPPORT
+-- Agent token: raw shown once; only its hash is stored.
+-- =====================================================================
+
+-- pgcrypto for digest()/gen_random_bytes()
+create extension if not exists pgcrypto with schema extensions;
+
+-- ---------- Create an agent, returning the RAW token once -----------
+create or replace function public.create_router_agent(
+  p_name      text,
+  p_router_id uuid default null
+)
+returns table (agent_id uuid, raw_token text)
+language plpgsql
+security definer
+set search_path = public, extensions
+as $createagent$
+declare
+  _company uuid := public.current_company_id();
+  _token   text;
+  _hash    text;
+  _id      uuid;
+begin
+  if _company is null or not public.is_company_admin() then
+    raise exception 'Hauna ruhusa ya kutengeneza agent';
+  end if;
+
+  -- 32-byte random token, hex-encoded.
+  _token := encode(extensions.gen_random_bytes(32), 'hex');
+  _hash  := encode(extensions.digest(_token, 'sha256'), 'hex');
+
+  insert into public.router_agents (company_id, router_id, name, token_hash)
+  values (_company, p_router_id, coalesce(p_name, 'Agent'), _hash)
+  returning id into _id;
+
+  insert into public.audit_logs (company_id, actor_id, action, metadata)
+  values (_company, auth.uid(), 'agent.create', jsonb_build_object('name', p_name));
+
+  agent_id := _id;
+  raw_token := _token;
+  return next;
+end;
+$createagent$;
+
+-- ---------- Rotate / revoke helpers ---------------------------------
+create or replace function public.revoke_router_agent(p_agent_id uuid)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $revoke$
+begin
+  if not public.is_company_admin() then
+    raise exception 'Hauna ruhusa';
+  end if;
+  update public.router_agents
+     set is_active = false
+   where id = p_agent_id
+     and company_id = public.current_company_id();
+end;
+$revoke$;
 

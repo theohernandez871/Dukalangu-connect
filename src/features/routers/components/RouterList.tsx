@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { DeleteConfirmDialog } from '@/components/feedback/DeleteConfirmDialog';
 import { RouterStatusBadge } from './RouterStatusBadge';
 import { RouterFormDialog } from './RouterFormDialog';
+import { RouterTestButton } from './RouterTestButton';
 import { useRouters, useRouterMutations } from '../hooks/useRouters';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { timeAgo } from '@/utils/currency';
@@ -69,6 +70,7 @@ export function RouterList() {
           canManage
             ? (r) => (
                 <div className="flex justify-end gap-1">
+                  <RouterTestButton routerId={r.id} />
                   <Button variant="ghost" size="sm" onClick={() => setEditing(r)} aria-label="Hariri">
                     <PencilSquareIcon className="h-4 w-4" />
                   </Button>
