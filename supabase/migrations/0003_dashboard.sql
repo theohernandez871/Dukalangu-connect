@@ -1,7 +1,7 @@
 -- =====================================================================
 -- PHASE 2 — DASHBOARD SUPPORT
 -- Stats RPC (respects RLS via current_company_id) + notifications table.
--- Dollar-quoting uses $fn$ (never $$).
+-- Dollar-quoting: kila function ina tag yake ya kipekee.
 -- =====================================================================
 
 -- ---------- Dashboard stats RPC --------------------------------------
@@ -22,7 +22,7 @@ language plpgsql
 stable
 security definer
 set search_path = public
-as $fn$
+as $stats$
 declare
   v_company uuid := public.current_company_id();
 begin
@@ -37,7 +37,7 @@ begin
     0::bigint,          -- routers_total (Phase 4)
     0::bigint;          -- routers_online(Phase 4)
 end;
-$fn$;
+$stats$;
 
 -- ---------- Notifications table --------------------------------------
 create table if not exists public.notifications (

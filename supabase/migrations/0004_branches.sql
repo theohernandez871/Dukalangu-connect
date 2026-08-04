@@ -1,7 +1,7 @@
 -- =====================================================================
 -- PHASE 3 — COMPANY MANAGEMENT (branches, employees)
 -- Every employee belongs to a branch. Signup creates an "HQ" branch.
--- Dollar-quoting uses $fn$ (never $$).
+-- Dollar-quoting: kila function ina tag yake ya kipekee.
 -- =====================================================================
 
 -- ---------- Branches -------------------------------------------------
@@ -33,9 +33,9 @@ language sql
 stable
 security definer
 set search_path = public
-as $fn$
+as $userrole$
   select role from public.profiles where id = auth.uid();
-$fn$;
+$userrole$;
 
 -- ---------- Helper: is the caller a company admin/owner? -------------
 create or replace function public.is_company_admin()
@@ -44,13 +44,13 @@ language sql
 stable
 security definer
 set search_path = public
-as $fn$
+as $isadmin$
   select exists (
     select 1 from public.profiles
     where id = auth.uid()
       and role in ('super_admin', 'company_owner', 'branch_manager')
   );
-$fn$;
+$isadmin$;
 
 -- ---------- Rewrite signup handler: create company + HQ + owner ------
 -- Now distinguishes a fresh owner signup from an invited employee.
@@ -59,7 +59,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $fn$
+as $newuser2$
 declare
   v_company_id  uuid;
   v_branch_id   uuid;
@@ -119,4 +119,4 @@ begin
 
   return new;
 end;
-$fn$;
+$newuser2$;

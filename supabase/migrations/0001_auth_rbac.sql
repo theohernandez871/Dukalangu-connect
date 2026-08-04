@@ -1,11 +1,11 @@
 -- =====================================================================
 -- PHASE 1 — AUTHENTICATION & RBAC
 -- Multi-tenant: shared DB, isolation by company_id + RLS.
--- Dollar-quoting uses $fn$ (never $$).
+-- Dollar-quoting: kila function ina tag yake ya kipekee.
 -- =====================================================================
 
 -- ---------- Enums ----------------------------------------------------
-do $fn$
+do $init$
 begin
   if not exists (select 1 from pg_type where typname = 'user_role') then
     create type public.user_role as enum (
@@ -20,7 +20,7 @@ begin
     );
   end if;
 end;
-$fn$;
+$init$;
 
 -- ---------- Companies (tenants) --------------------------------------
 create table if not exists public.companies (
@@ -72,9 +72,9 @@ language sql
 stable
 security definer
 set search_path = public
-as $fn$
+as $currentco$
   select company_id from public.profiles where id = auth.uid();
-$fn$;
+$currentco$;
 
 -- ---------- Signup trigger: create company + owner profile -----------
 create or replace function public.handle_new_user()
@@ -82,7 +82,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $fn$
+as $newuser$
 declare
   v_company_id uuid;
   v_company    text;
@@ -122,7 +122,7 @@ begin
 
   return new;
 end;
-$fn$;
+$newuser$;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -135,7 +135,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $fn$
+as $confirmed$
 begin
   if new.email_confirmed_at is not null
      and old.email_confirmed_at is null then
@@ -145,7 +145,7 @@ begin
   end if;
   return new;
 end;
-$fn$;
+$confirmed$;
 
 drop trigger if exists on_auth_user_confirmed on auth.users;
 create trigger on_auth_user_confirmed

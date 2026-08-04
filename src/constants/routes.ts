@@ -16,6 +16,9 @@ export const ROUTES = {
   permissions: '/permissions',
   activity: '/activity',
 
+  // Phase 4 — MikroTik
+  routers: '/routers',
+
   // Fallback
   root: '/',
   notFound: '*',

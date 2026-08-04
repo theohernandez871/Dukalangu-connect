@@ -49,10 +49,10 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $fn$
+as $guard$
 declare
-  v_actor_role public.user_role := public.current_user_role();
-  v_owner_id   uuid;
+  _actor_role public.user_role := public.current_user_role();
+  _owner_id   uuid;
 begin
   -- Nobody may set a profile to super_admin via the app.
   if new.role = 'super_admin' and old.role <> 'super_admin' then
@@ -65,21 +65,24 @@ begin
   end if;
 
   -- The company owner cannot be demoted or deactivated by others.
-  select owner_id into v_owner_id from public.companies where id = old.company_id;
-  if old.id = v_owner_id and new.id <> auth.uid() then
+  select c.owner_id into _owner_id
+    from public.companies c
+    where c.id = old.company_id;
+
+  if old.id = _owner_id and new.id <> auth.uid() then
     if new.role <> old.role or new.is_active <> old.is_active then
       raise exception 'Mmiliki wa kampuni hawezi kubadilishwa';
     end if;
   end if;
 
   -- Branch managers may not create owners.
-  if v_actor_role = 'branch_manager' and new.role = 'company_owner' then
+  if _actor_role = 'branch_manager' and new.role = 'company_owner' then
     raise exception 'Meneja wa tawi hawezi kuunda mmiliki';
   end if;
 
   return new;
 end;
-$fn$;
+$guard$;
 
 drop trigger if exists trg_guard_profile_update on public.profiles;
 create trigger trg_guard_profile_update
@@ -92,7 +95,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = public
-as $fn$
+as $auditbranch$
 begin
   insert into public.audit_logs (company_id, actor_id, action, metadata)
   values (
@@ -107,7 +110,7 @@ begin
   );
   return coalesce(new, old);
 end;
-$fn$;
+$auditbranch$;
 
 drop trigger if exists trg_audit_branch on public.branches;
 create trigger trg_audit_branch
