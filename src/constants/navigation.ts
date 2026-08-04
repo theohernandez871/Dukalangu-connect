@@ -37,6 +37,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Ruhusa', to: ROUTES.permissions, icon: ShieldCheckIcon, permission: 'employee:view', enabled: true },
   { label: 'Kumbukumbu', to: ROUTES.activity, icon: ClipboardDocumentListIcon, permission: 'audit:view', enabled: true },
   { label: 'Routers', to: ROUTES.routers, icon: ServerStackIcon, permission: 'router:view', enabled: true },
+  { label: 'TP-Link', to: ROUTES.tplink, icon: WifiIcon, permission: 'router:view', enabled: true },
   { label: 'Hotspot', to: '/hotspot', icon: WifiIcon, permission: 'router:view', enabled: false },
   { label: 'Vifurushi', to: '/packages', icon: TicketIcon, permission: 'package:view', enabled: false },
   { label: 'Vocha', to: '/vouchers', icon: TicketIcon, permission: 'voucher:view', enabled: false },

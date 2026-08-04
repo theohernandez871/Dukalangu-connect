@@ -20,6 +20,10 @@ export const ROUTES = {
   routers: '/routers',
   routerDetail: '/routers/:id',
 
+  // Phase 5 — TP-Link Omada
+  tplink: '/tplink',
+  tplinkDetail: '/tplink/:id',
+
   // Fallback
   root: '/',
   notFound: '*',

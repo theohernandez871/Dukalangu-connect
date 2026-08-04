@@ -21,6 +21,8 @@ const PermissionsPage = lazy(() => import('../../features/employees/pages/Permis
 const ActivityPage = lazy(() => import('../../features/activity/pages/ActivityPage').then((m) => ({ default: m.ActivityPage })));
 const RoutersPage = lazy(() => import('../../features/routers/pages/RoutersPage').then((m) => ({ default: m.RoutersPage })));
 const RouterDetailPage = lazy(() => import('../../features/routers/pages/RouterDetailPage').then((m) => ({ default: m.RouterDetailPage })));
+const OmadaControllersPage = lazy(() => import('../../features/omada/pages/OmadaControllersPage').then((m) => ({ default: m.OmadaControllersPage })));
+const OmadaDetailPage = lazy(() => import('../../features/omada/pages/OmadaDetailPage').then((m) => ({ default: m.OmadaDetailPage })));
 
 export function AppRouter() {
   return (
@@ -51,6 +53,8 @@ export function AppRouter() {
               <Route path={ROUTES.activity} element={<ActivityPage />} />
               <Route path={ROUTES.routers} element={<RoutersPage />} />
               <Route path={ROUTES.routerDetail} element={<RouterDetailPage />} />
+              <Route path={ROUTES.tplink} element={<OmadaControllersPage />} />
+              <Route path={ROUTES.tplinkDetail} element={<OmadaDetailPage />} />
             </Route>
           </Route>
 
