@@ -5,7 +5,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { useRecentActivity } from '../hooks/useDashboard';
-import { actionLabel } from '../constants/actionLabels';
+import { actionLabel } from '@/constants/actionLabels';
 import { timeAgo } from '@/utils/currency';
 
 export function RecentActivity() {

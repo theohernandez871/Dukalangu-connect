@@ -15,6 +15,10 @@ const VerifyEmailPage = lazy(() => import('../../features/auth/pages/VerifyEmail
 const TwoFactorPage = lazy(() => import('../../features/auth/pages/TwoFactorPage').then((m) => ({ default: m.TwoFactorPage })));
 const DashboardLayout = lazy(() => import('../../components/layout/DashboardLayout').then((m) => ({ default: m.DashboardLayout })));
 const DashboardPage = lazy(() => import('../../features/dashboard/pages/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const CompanyPage = lazy(() => import('../../features/companies/pages/CompanyPage').then((m) => ({ default: m.CompanyPage })));
+const EmployeesPage = lazy(() => import('../../features/employees/pages/EmployeesPage').then((m) => ({ default: m.EmployeesPage })));
+const PermissionsPage = lazy(() => import('../../features/employees/pages/PermissionsPage').then((m) => ({ default: m.PermissionsPage })));
+const ActivityPage = lazy(() => import('../../features/activity/pages/ActivityPage').then((m) => ({ default: m.ActivityPage })));
 
 export function AppRouter() {
   return (
@@ -39,6 +43,10 @@ export function AppRouter() {
             <Route path={ROUTES.twoFactor} element={<TwoFactorPage />} />
             <Route element={<DashboardLayout />}>
               <Route path={ROUTES.dashboard} element={<DashboardPage />} />
+              <Route path={ROUTES.companies} element={<CompanyPage />} />
+              <Route path={ROUTES.employees} element={<EmployeesPage />} />
+              <Route path={ROUTES.permissions} element={<PermissionsPage />} />
+              <Route path={ROUTES.activity} element={<ActivityPage />} />
             </Route>
           </Route>
 
