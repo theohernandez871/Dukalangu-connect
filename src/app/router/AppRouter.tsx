@@ -23,6 +23,7 @@ const RoutersPage = lazy(() => import('../../features/routers/pages/RoutersPage'
 const RouterDetailPage = lazy(() => import('../../features/routers/pages/RouterDetailPage').then((m) => ({ default: m.RouterDetailPage })));
 const OmadaControllersPage = lazy(() => import('../../features/omada/pages/OmadaControllersPage').then((m) => ({ default: m.OmadaControllersPage })));
 const OmadaDetailPage = lazy(() => import('../../features/omada/pages/OmadaDetailPage').then((m) => ({ default: m.OmadaDetailPage })));
+const PackagesPage = lazy(() => import('../../features/packages/pages/PackagesPage').then((m) => ({ default: m.PackagesPage })));
 
 export function AppRouter() {
   return (
@@ -55,6 +56,7 @@ export function AppRouter() {
               <Route path={ROUTES.routerDetail} element={<RouterDetailPage />} />
               <Route path={ROUTES.tplink} element={<OmadaControllersPage />} />
               <Route path={ROUTES.tplinkDetail} element={<OmadaDetailPage />} />
+              <Route path={ROUTES.packages} element={<PackagesPage />} />
             </Route>
           </Route>
 

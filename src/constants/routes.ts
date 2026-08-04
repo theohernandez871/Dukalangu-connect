@@ -24,6 +24,9 @@ export const ROUTES = {
   tplink: '/tplink',
   tplinkDetail: '/tplink/:id',
 
+  // Phase 6 — Packages
+  packages: '/packages',
+
   // Fallback
   root: '/',
   notFound: '*',
