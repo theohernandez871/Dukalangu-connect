@@ -47,6 +47,12 @@ export const routerService = {
     return (data ?? []).map((r) => mapRouter(r as RouterRow));
   },
 
+  async getById(id: string): Promise<Router> {
+    const { data, error } = await routerRepository.getById(id);
+    if (error || !data) throw error ?? new Error('Router haipatikani');
+    return mapRouter(data as RouterRow);
+  },
+
   async create(companyId: string, input: RouterInput): Promise<void> {
     const { data, error } = await routerRepository.create(companyId, input);
     if (error) throw error;

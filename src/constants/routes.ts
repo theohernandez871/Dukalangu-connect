@@ -18,6 +18,7 @@ export const ROUTES = {
 
   // Phase 4 — MikroTik
   routers: '/routers',
+  routerDetail: '/routers/:id',
 
   // Fallback
   root: '/',

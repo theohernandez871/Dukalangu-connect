@@ -48,6 +48,16 @@ export const commandService = {
     return data as string;
   },
 
+  async enqueueWithParams(
+    routerId: string,
+    command: string,
+    params: Record<string, unknown>,
+  ): Promise<string> {
+    const { data, error } = await commandRepository.enqueue(routerId, command, params);
+    if (error) throw error;
+    return data as string;
+  },
+
   async get(commandId: string): Promise<RouterCommand> {
     const { data, error } = await commandRepository.get(commandId);
     if (error || !data) throw error ?? new Error('Command haipatikani');

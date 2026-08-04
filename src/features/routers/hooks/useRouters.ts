@@ -13,6 +13,14 @@ export function useRouters() {
   });
 }
 
+export function useRouter(id: string) {
+  return useQuery({
+    queryKey: ['router', id],
+    queryFn: () => routerService.getById(id),
+    enabled: !!id,
+  });
+}
+
 export function useRouterMutations() {
   const qc = useQueryClient();
   const { session } = useAuth();

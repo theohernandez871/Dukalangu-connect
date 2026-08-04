@@ -23,6 +23,10 @@ export const routerRepository = {
       .order('created_at', { ascending: false });
   },
 
+  getById(id: string) {
+    return supabase.from('routers').select('*, branch:branch_id(name)').eq('id', id).single();
+  },
+
   create(companyId: string, input: RouterInput) {
     return supabase.from('routers').insert(toRow(companyId, input)).select('id').single();
   },

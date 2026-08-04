@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PencilSquareIcon, TrashIcon, ServerStackIcon } from '@heroicons/react/24/outline';
 import { DataTable } from '@/components/data/DataTable';
 import { Button } from '@/components/ui/Button';
@@ -17,6 +18,7 @@ export function RouterList() {
   const { data, isLoading, isError, refetch } = useRouters();
   const { remove } = useRouterMutations();
   const { hasPermission } = useAuth();
+  const navigate = useNavigate();
   const canManage = hasPermission('router:manage');
 
   const [editing, setEditing] = useState<Router | null>(null);
@@ -27,7 +29,10 @@ export function RouterList() {
       key: 'name',
       header: 'Router',
       cell: (r) => (
-        <div className="flex items-center gap-2">
+        <button
+          onClick={() => navigate(`/routers/${r.id}`)}
+          className="flex items-center gap-2 text-left hover:text-primary-600"
+        >
           <ServerStackIcon className="h-4 w-4 text-slate-400" />
           <div className="min-w-0">
             <p className="font-medium">{r.name}</p>
@@ -35,7 +40,7 @@ export function RouterList() {
               {r.connectionType === 'agent' ? 'Agent' : `${r.host ?? '—'}:${r.apiPort}`}
             </p>
           </div>
-        </div>
+        </button>
       ),
     },
     { key: 'branch', header: 'Tawi', hideOnMobile: true, cell: (r) => r.branchName ?? '—' },

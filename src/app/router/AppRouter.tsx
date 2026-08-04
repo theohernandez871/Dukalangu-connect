@@ -20,6 +20,7 @@ const EmployeesPage = lazy(() => import('../../features/employees/pages/Employee
 const PermissionsPage = lazy(() => import('../../features/employees/pages/PermissionsPage').then((m) => ({ default: m.PermissionsPage })));
 const ActivityPage = lazy(() => import('../../features/activity/pages/ActivityPage').then((m) => ({ default: m.ActivityPage })));
 const RoutersPage = lazy(() => import('../../features/routers/pages/RoutersPage').then((m) => ({ default: m.RoutersPage })));
+const RouterDetailPage = lazy(() => import('../../features/routers/pages/RouterDetailPage').then((m) => ({ default: m.RouterDetailPage })));
 
 export function AppRouter() {
   return (
@@ -49,6 +50,7 @@ export function AppRouter() {
               <Route path={ROUTES.permissions} element={<PermissionsPage />} />
               <Route path={ROUTES.activity} element={<ActivityPage />} />
               <Route path={ROUTES.routers} element={<RoutersPage />} />
+              <Route path={ROUTES.routerDetail} element={<RouterDetailPage />} />
             </Route>
           </Route>
 
