@@ -38,8 +38,10 @@ export class RouterWorker {
       await this.conn.connect();
       const pingStart = Date.now();
       const metrics = await collectMetrics(this.conn);
-      const responseMs = Date.now() - pingStart;
-      await this.server.heartbeat(this.router.id, metrics, responseMs, Date.now() - start);
+      const pingMs = Date.now() - pingStart;
+      const responseMs = Date.now() - start;
+      await this.server.heartbeat(this.router.id, metrics, pingMs, responseMs);
+      this.log.debug(`Heartbeat OK: version=${metrics.version}, cpu=${metrics.cpuLoad}, users=${metrics.connectedUsers}`);
     } catch (e) {
       this.log.warn('Heartbeat imeshindwa — router offline', String(e));
       // A failed heartbeat leaves the row un-updated; the server marks it

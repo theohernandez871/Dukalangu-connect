@@ -4,7 +4,7 @@
 
 import { RouterWorker } from './RouterWorker.js';
 import { ServerClient, type PollRouter } from '../ws-client/client.js';
-import { createLogger } from '../logging/logger.js';
+import { createLogger, setRemoteSink } from '../logging/logger.js';
 import type { AgentConfig } from '../security/config.js';
 import type { CommandResult } from '../command-handler/handler.js';
 
@@ -18,6 +18,8 @@ export class Orchestrator {
 
   constructor(private readonly cfg: AgentConfig) {
     this.server = new ServerClient(cfg);
+    // Ship info+ logs to the server so admins see them in the dashboard.
+    setRemoteSink((entry) => this.server.queueLog(entry));
   }
 
   wantsRestart(): boolean {
@@ -97,6 +99,7 @@ export class Orchestrator {
       } catch (e) {
         log.warn('Poll imeshindwa (mtandao?), najaribu tena', String(e));
       }
+      await this.server.flushLogs().catch(() => {});
       await delay(this.cfg.pollInterval);
     }
   }

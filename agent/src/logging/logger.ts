@@ -1,16 +1,30 @@
 // Structured logging with levels, timestamps, and a router/context tag.
-// Production-ready: JSON-friendly, ready for file rotation (see logging/file.ts).
+// Production-ready: JSON-friendly, file rotation (file.js), and an optional
+// remote sink that ships logs to the server (router_logs) for dashboard view.
 
 import { appendLog } from './file.js';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
+export interface RemoteLogEntry {
+  level: LogLevel;
+  scope: string;
+  message: string;
+}
+
 const LEVEL_ORDER: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
 
 let minLevel: LogLevel = 'info';
 
+// Optional remote sink (set by the orchestrator once the server client exists).
+let remoteSink: ((entry: RemoteLogEntry) => void) | null = null;
+
 export function setLogLevel(level: LogLevel): void {
   minLevel = level;
+}
+
+export function setRemoteSink(sink: (entry: RemoteLogEntry) => void): void {
+  remoteSink = sink;
 }
 
 function emit(level: LogLevel, scope: string, message: string, meta?: unknown): void {
@@ -24,6 +38,16 @@ function emit(level: LogLevel, scope: string, message: string, meta?: unknown): 
   else console.log(full);
 
   void appendLog(full);
+
+  // Ship info+ to the server (skip debug noise) if a sink is configured.
+  if (remoteSink && LEVEL_ORDER[level] >= LEVEL_ORDER.info) {
+    const msg = meta !== undefined ? `${message} ${safeJson(meta)}` : message;
+    try {
+      remoteSink({ level, scope, message: msg });
+    } catch {
+      // never let logging break the app
+    }
+  }
 }
 
 function safeJson(v: unknown): string {

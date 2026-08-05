@@ -68,6 +68,22 @@ export class ServerClient {
     await this.send('ack', { results });
   }
 
+  // --- Remote logging (batched) ---
+  private logBuffer: { level: string; scope: string; message: string }[] = [];
+
+  /** Queue a log entry to ship to the server (router_logs). */
+  queueLog(entry: { level: string; scope: string; message: string }): void {
+    this.logBuffer.push(entry);
+    if (this.logBuffer.length > 50) this.logBuffer.shift(); // cap memory
+  }
+
+  /** Flush queued logs to the server. Called periodically by the orchestrator. */
+  async flushLogs(): Promise<void> {
+    if (this.logBuffer.length === 0) return;
+    const entries = this.logBuffer.splice(0, this.logBuffer.length);
+    await this.send('log', { entries });
+  }
+
   private async send(action: string, body: Record<string, unknown>): Promise<void> {
     try {
       const res = await fetch(this.url('agent-gateway'), {

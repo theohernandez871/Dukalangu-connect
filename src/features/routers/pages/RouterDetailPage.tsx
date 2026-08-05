@@ -14,6 +14,7 @@ import { DhcpTab } from '../components/DhcpTab';
 import { QueuesTab } from '../components/QueuesTab';
 import { FirewallTab } from '../components/FirewallTab';
 import { ProfilesTab } from '../components/ProfilesTab';
+import { RouterLogsTab } from '../components/RouterLogsTab';
 import { useRouter } from '../hooks/useRouters';
 import { useRouterRealtime } from '../hooks/useRouterRealtime';
 import { ROUTES } from '@/constants/routes';
@@ -26,6 +27,7 @@ const TABS: TabItem[] = [
   { id: 'queues', label: 'Queues' },
   { id: 'firewall', label: 'Firewall' },
   { id: 'profiles', label: 'Profiles' },
+  { id: 'logs', label: 'Logs' },
 ];
 
 export function RouterDetailPage() {
@@ -67,6 +69,7 @@ export function RouterDetailPage() {
         {tab === 'queues' && <QueuesTab routerId={router.id} />}
         {tab === 'firewall' && <FirewallTab routerId={router.id} />}
         {tab === 'profiles' && <ProfilesTab routerId={router.id} />}
+        {tab === 'logs' && <RouterLogsTab routerId={router.id} />}
       </div>
     </div>
   );

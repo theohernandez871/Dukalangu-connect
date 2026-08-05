@@ -129,3 +129,18 @@ export async function handleAck(admin: SupabaseClient, body: Record<string, unkn
       .eq('id', r.id);
   }
 }
+
+/** log: write agent lifecycle logs to router_logs for dashboard visibility. */
+export async function handleLog(admin: SupabaseClient, agent: AgentRow, body: Record<string, unknown>) {
+  const entries = (body.entries ?? []) as { level?: string; scope?: string; message: string; routerId?: string }[];
+  if (entries.length === 0) return;
+  const rows = entries.map((e) => ({
+    company_id: agent.company_id,
+    router_id: e.routerId ?? agent.router_id ?? null,
+    agent_id: agent.id,
+    level: e.level ?? 'info',
+    scope: e.scope ?? null,
+    message: e.message,
+  }));
+  await admin.from('router_logs').insert(rows);
+}

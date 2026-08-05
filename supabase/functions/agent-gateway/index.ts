@@ -11,7 +11,7 @@
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 import { json, preflight, env } from '../_shared/http.ts';
 import { authenticateAgent } from '../_shared/agentAuth.ts';
-import { handlePoll, handleHeartbeat, handleSync, handleAck } from '../_shared/agentGateway.ts';
+import { handlePoll, handleHeartbeat, handleSync, handleAck, handleLog } from '../_shared/agentGateway.ts';
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return preflight();
@@ -39,6 +39,9 @@ Deno.serve(async (req) => {
         return json({ ok: true });
       case 'ack':
         await handleAck(admin, body);
+        return json({ ok: true });
+      case 'log':
+        await handleLog(admin, agent, body);
         return json({ ok: true });
       default:
         return json({ error: 'Kitendo si sahihi' }, 400);

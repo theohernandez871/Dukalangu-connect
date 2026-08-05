@@ -6,9 +6,12 @@
   "main": "dist/index.js",
   "scripts": {
     "build": "tsc",
+    "prestart": "node -e \"require('fs').existsSync('dist/index.js')||(console.error('\\n[!] dist/index.js haipo. Endesha: npm run build\\n'),process.exit(1))\"",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts",
     "typecheck": "tsc --noEmit",
+    "test:connection": "npm run build && node test/test-connection.mjs",
+    "test:metrics": "npm run build && node test/test-metrics.mjs",
     "service:install": "node dist/installer/service.js install",
     "service:uninstall": "node dist/installer/service.js uninstall",
     "build:exe": "npm run build && pkg . --targets node18-win-x64 --output build/hotspot-agent.exe"
