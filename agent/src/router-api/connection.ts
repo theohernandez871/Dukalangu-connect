@@ -26,6 +26,11 @@ export class RouterConnection {
 
   async connect(): Promise<void> {
     if (this.connected) return;
+    if (!this.creds.host) {
+      throw new Error(
+        `Router ${this.label} haina IP (host). Nenda dashboardi -> Routers -> Hariri -> weka IP ya router (mfano 192.168.88.1).`,
+      );
+    }
     log.info(`Najaribu kuunganisha: ${this.label} (${this.creds.host}:${this.creds.port}, user=${this.creds.user})`);
     this.api = new RouterOSAPI({
       host: this.creds.host,

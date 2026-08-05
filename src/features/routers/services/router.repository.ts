@@ -8,7 +8,9 @@ function toRow(companyId: string, input: RouterInput) {
     branch_id: input.branchId || null,
     name: input.name,
     connection_type: input.connectionType,
-    host: input.connectionType === 'direct' ? input.host || null : null,
+    // The agent needs the router's LAN IP to reach RouterOS, so host is
+    // always persisted (this used to be gated on the removed 'direct' mode).
+    host: input.host || null,
     api_port: input.apiPort ?? 8728,
     username: input.username || null,
   };
