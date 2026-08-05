@@ -30,6 +30,11 @@ export const ROUTES = {
   // Phase 7 — Vouchers
   vouchers: '/vouchers',
 
+  // Phase 8B — Customer Portal (public)
+  portal: '/portal/:slug',
+  // Phase 8B — Portal admin
+  portalAdmin: '/portal-admin',
+
   // Fallback
   root: '/',
   notFound: '*',

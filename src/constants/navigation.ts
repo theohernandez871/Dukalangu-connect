@@ -12,6 +12,7 @@ import {
   UsersIcon,
   ShieldCheckIcon,
   ClipboardDocumentListIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 import type { Permission } from '@/types/rbac';
 import { ROUTES } from './routes';
@@ -41,6 +42,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Hotspot', to: '/hotspot', icon: WifiIcon, permission: 'router:view', enabled: false },
   { label: 'Vifurushi', to: ROUTES.packages, icon: TicketIcon, permission: 'package:view', enabled: true },
   { label: 'Vocha', to: ROUTES.vouchers, icon: TicketIcon, permission: 'voucher:view', enabled: true },
+  { label: 'Portal ya Wateja', to: ROUTES.portalAdmin, icon: GlobeAltIcon, permission: 'settings:manage', enabled: true },
   { label: 'Malipo', to: '/payments', icon: CreditCardIcon, permission: 'payment:view', enabled: false },
   { label: 'Ripoti', to: '/reports', icon: ChartBarIcon, permission: 'report:view', enabled: false },
   { label: 'Arifa', to: '/notifications', icon: BellAlertIcon, enabled: false },
