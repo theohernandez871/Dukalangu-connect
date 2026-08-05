@@ -26,6 +26,7 @@ export class RouterConnection {
 
   async connect(): Promise<void> {
     if (this.connected) return;
+    log.info(`Najaribu kuunganisha: ${this.label} (${this.creds.host}:${this.creds.port}, user=${this.creds.user})`);
     this.api = new RouterOSAPI({
       host: this.creds.host,
       port: this.creds.port,
@@ -33,9 +34,15 @@ export class RouterConnection {
       password: this.creds.password,
       timeout: Math.ceil(this.creds.timeout / 1000),
     });
-    await this.api.connect();
-    this.connected = true;
-    log.info(`Imeunganishwa: ${this.label} (${this.creds.host}:${this.creds.port})`);
+    try {
+      await this.api.connect();
+      this.connected = true;
+      log.info(`Imeunganishwa: ${this.label} (${this.creds.host}:${this.creds.port})`);
+    } catch (e) {
+      this.connected = false;
+      log.error(`Imeshindwa kuunganisha ${this.label} (${this.creds.host}:${this.creds.port}): ${String(e)}`);
+      throw e;
+    }
   }
 
   /** Run a command; on connection loss, reconnect once and retry. */

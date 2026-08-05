@@ -7,7 +7,7 @@ import { useRouterCommand } from '../hooks/useAgents';
 
 /** Triggers a lightweight 'identity' command to verify the agent path. */
 export function RouterTestButton({ routerId }: { routerId: string }) {
-  const { run, result, isRunning } = useRouterCommand();
+  const { run, result, isRunning, phase } = useRouterCommand();
   const [open, setOpen] = useState(false);
 
   const test = async () => {
@@ -31,21 +31,31 @@ export function RouterTestButton({ routerId }: { routerId: string }) {
         footer={<Button onClick={() => setOpen(false)}>Sawa</Button>}
       >
         {isRunning && (
-          <p className="text-sm text-slate-500">Inatuma amri kwa agent... subiri majibu.</p>
+          <div className="space-y-2">
+            <p className="text-sm text-slate-500">{phase ?? 'Inatuma amri kwa agent...'}</p>
+            <p className="text-xs text-slate-400">
+              Inasubiri agent iitekeleze (hadi sekunde 30). Agent lazima IWE INAENDESHWA kwenye kifaa cha LAN.
+            </p>
+          </div>
         )}
         {!isRunning && !result && (
-          <Alert tone="warning">Hakuna majibu. Hakikisha agent imeunganishwa.</Alert>
+          <Alert tone="warning">Hakuna majibu. Hakikisha agent imeunganishwa na inaendeshwa.</Alert>
         )}
         {!isRunning && result && !failed && (
           <div className="space-y-2">
-            <Alert tone="success">Muunganisho umefanikiwa!</Alert>
+            <Alert tone="success">Muunganisho umefanikiwa! Agent imewasiliana na RouterOS.</Alert>
             <pre className="max-h-48 overflow-auto rounded-lg bg-slate-50 p-3 text-xs dark:bg-slate-800/50">
               {JSON.stringify(result.result, null, 2)}
             </pre>
           </div>
         )}
         {!isRunning && result && failed && (
-          <Alert tone="danger">{result.error ?? 'Muunganisho umeshindikana au umechelewa.'}</Alert>
+          <div className="space-y-2">
+            <Alert tone="danger">{result.error ?? 'Muunganisho umeshindikana au umechelewa.'}</Alert>
+            <p className="text-xs text-slate-400">
+              Angalia console (F12) kwa maelezo zaidi ya kila hatua.
+            </p>
+          </div>
         )}
       </Dialog>
     </>

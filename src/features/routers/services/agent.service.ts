@@ -72,4 +72,11 @@ export const commandService = {
       finishedAt: data.finished_at,
     };
   },
+
+  /** Count active agents that would poll for this router (company-wide or specific). */
+  async countActiveAgents(routerId: string): Promise<number> {
+    const { data, error } = await commandRepository.countAgentsForRouter(routerId);
+    if (error) throw error;
+    return data ?? 0;
+  },
 };

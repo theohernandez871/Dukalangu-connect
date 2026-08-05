@@ -45,7 +45,10 @@ export class ServerClient {
       headers: this.headers(),
       body: JSON.stringify({ action: 'poll' }),
     });
-    if (!res.ok) throw new Error(`poll ${res.status}`);
+    if (!res.ok) {
+      log.error(`poll imekataliwa na server: HTTP ${res.status} (token? gateway deployed?)`);
+      throw new Error(`poll ${res.status}`);
+    }
     return (await res.json()) as PollResponse;
   }
 

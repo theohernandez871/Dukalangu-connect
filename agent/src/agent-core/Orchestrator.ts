@@ -42,8 +42,11 @@ export class Orchestrator {
     const seen = new Set(routers.map((r) => r.id));
     for (const r of routers) {
       if (!this.workers.has(r.id)) {
+        if (!r.host) {
+          log.warn(`Router ${r.id.slice(0, 8)} haina IP (host). Iongeze IP dashboardi (Routers -> Hariri).`);
+        }
         this.workers.set(r.id, new RouterWorker(r, this.server, this.cfg));
-        log.info(`Router imeongezwa: ${r.id.slice(0, 8)}`);
+        log.info(`Router imeongezwa: ${r.id.slice(0, 8)} (${r.host || 'HAKUNA IP'}:${r.apiPort})`);
       }
     }
     for (const id of [...this.workers.keys()]) {
@@ -60,18 +63,31 @@ export class Orchestrator {
     while (this.running) {
       try {
         const { routers, commands } = await this.server.poll();
+        const cmdCount = Object.values(commands).reduce((n, c) => n + c.length, 0);
+        log.debug(`Poll: routers=${routers.length}, commands=${cmdCount}`);
         this.sync(routers);
 
         const results: CommandResult[] = [];
         for (const [routerId, cmds] of Object.entries(commands)) {
+          log.info(`Nimepokea amri ${cmds.length} kwa router ${routerId.slice(0, 8)}: ${cmds.map((c) => c.command).join(', ')}`);
           if (cmds.some((c) => c.command === 'agent.restart')) {
             this.restartRequested = true;
             results.push({ id: cmds.find((c) => c.command === 'agent.restart')!.id, ok: true });
           }
           const worker = this.workers.get(routerId);
-          if (worker) results.push(...(await worker.runCommands(cmds.filter((c) => c.command !== 'agent.restart'))));
+          if (worker) {
+            results.push(...(await worker.runCommands(cmds.filter((c) => c.command !== 'agent.restart'))));
+          } else {
+            log.warn(`Hakuna worker kwa router ${routerId.slice(0, 8)} — huenda host/credentials hazipo`);
+            for (const c of cmds.filter((c) => c.command !== 'agent.restart')) {
+              results.push({ id: c.id, ok: false, error: 'Router haina worker (host/credentials?)' });
+            }
+          }
         }
-        await this.server.ack(results);
+        if (results.length) {
+          log.info(`Narudisha matokeo ${results.length} kwa server`);
+          await this.server.ack(results);
+        }
 
         if (this.restartRequested) {
           log.info('Restart imeombwa — nazima kwa ajili ya service manager');

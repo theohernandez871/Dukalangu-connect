@@ -34,4 +34,25 @@ export const commandRepository = {
       .eq('id', commandId)
       .single();
   },
+
+  /**
+   * Count active agents able to serve this router: either bound directly to it,
+   * or company-wide (router_id is null) within the same company.
+   */
+  async countAgentsForRouter(routerId: string) {
+    const { data: router, error: rErr } = await supabase
+      .from('routers')
+      .select('company_id')
+      .eq('id', routerId)
+      .single();
+    if (rErr || !router) return { data: 0, error: rErr };
+
+    const { count, error } = await supabase
+      .from('router_agents')
+      .select('id', { count: 'exact', head: true })
+      .eq('company_id', router.company_id)
+      .eq('is_active', true)
+      .or(`router_id.eq.${routerId},router_id.is.null`);
+    return { data: count ?? 0, error };
+  },
 };
