@@ -1,12 +1,10 @@
 -- =====================================================================
--- HOTSPOT BILLING SYSTEM — MIGRATIONS ZOTE (PHASE 1–8B)
+-- HOTSPOT BILLING SYSTEM — MIGRATIONS ZOTE (PHASE 1–8B + fixes)
 -- =====================================================================
 -- Bandika faili hili LOTE kwenye Supabase SQL Editor kisha bonyeza RUN.
 -- Ni salama kuendesha mara nyingi (idempotent).
--- Toleo: v10 (imeongeza 8B: customer portal - settings, ads, offers,
---        announcements, public voucher redemption).
+-- Toleo: v11 (imeongeza 0017: credential read fix - vault via RPC).
 -- Inahitaji "supabase_vault" + "pgcrypto" (SQL inaziwasha yenyewe).
--- Hiari: "pg_cron" kwa offline sweep otomatiki (dashboard ina fallback).
 -- =====================================================================
 
 
@@ -1824,4 +1822,140 @@ begin
   end loop;
 end;
 $backfill$;
+
+
+-- #####################################################################
+-- FROM: 0016_router_logs.sql
+-- #####################################################################
+
+-- =====================================================================
+-- PHASE 8A-fix — ROUTER LOGS
+-- Agent-visible logs written to DB so admins see connection lifecycle
+-- from the dashboard (not just the agent terminal).
+-- Dollar-quotes: unique tags.
+-- =====================================================================
+
+create table if not exists public.router_logs (
+  id           bigint generated always as identity primary key,
+  company_id   uuid not null references public.companies(id) on delete cascade,
+  router_id    uuid references public.routers(id) on delete cascade,
+  agent_id     uuid references public.router_agents(id) on delete set null,
+  level        text not null default 'info',   -- debug|info|warn|error
+  scope        text,                            -- e.g. 'router-api','poll'
+  message      text not null,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists idx_router_logs_router on public.router_logs(router_id, created_at desc);
+create index if not exists idx_router_logs_company on public.router_logs(company_id, created_at desc);
+
+-- Keep only the most recent logs (auto-prune older than 7 days) on insert bursts.
+create or replace function public.prune_router_logs()
+returns void language plpgsql security definer set search_path = public
+as $prunelogs$
+begin
+  delete from public.router_logs where created_at < now() - interval '7 days';
+end;
+$prunelogs$;
+
+-- ---------- RLS ------------------------------------------------------
+alter table public.router_logs enable row level security;
+
+drop policy if exists router_logs_select on public.router_logs;
+create policy router_logs_select on public.router_logs
+  for select using (company_id = public.current_company_id());
+
+-- Inserts happen via the agent-gateway (service role) only.
+
+-- ---------- Realtime -------------------------------------------------
+do $rt$
+begin
+  begin
+    alter publication supabase_realtime add table public.router_logs;
+  exception when duplicate_object then null; end;
+end;
+$rt$;
+
+
+-- #####################################################################
+-- FROM: 0017_credential_read_fix.sql
+-- #####################################################################
+
+-- =====================================================================
+-- FIX: Router credential READ path.
+-- Root cause: the agent-gateway read `vault.decrypted_secrets` directly via
+-- PostgREST, but the `vault` schema is NOT exposed to the API — so the read
+-- returned NULL and the agent received an empty password ("invalid password").
+--
+-- Solution: a SECURITY DEFINER RPC that reads the decrypted secret inside the
+-- database (where vault IS reachable) and returns it. Callable by service_role
+-- only (used by the Edge Function), never by anon/authenticated clients.
+-- Dollar-quotes: unique tags.
+-- =====================================================================
+
+create or replace function public.get_router_password(p_router_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public, vault
+as $getrouterpw$
+declare
+  _secret_id uuid;
+  _password  text;
+begin
+  select secret_id into _secret_id
+    from public.router_credentials
+   where router_id = p_router_id;
+
+  if _secret_id is null then
+    return null;
+  end if;
+
+  -- vault.decrypted_secrets is reachable here (definer context), not via API.
+  select decrypted_secret into _password
+    from vault.decrypted_secrets
+   where id = _secret_id;
+
+  return _password;
+end;
+$getrouterpw$;
+
+-- Only the service role (Edge Functions) may read decrypted passwords.
+revoke all on function public.get_router_password(uuid) from public, anon, authenticated;
+grant execute on function public.get_router_password(uuid) to service_role;
+
+-- Same fix for Omada controllers (same root cause).
+create or replace function public.get_omada_password(p_controller_id uuid)
+returns text
+language plpgsql
+security definer
+set search_path = public, vault
+as $getomadapw$
+declare
+  _secret_id uuid;
+  _password  text;
+begin
+  select secret_id into _secret_id
+    from public.omada_credentials
+   where controller_id = p_controller_id;
+
+  if _secret_id is null then
+    return null;
+  end if;
+
+  select decrypted_secret into _password
+    from vault.decrypted_secrets
+   where id = _secret_id;
+
+  return _password;
+end;
+$getomadapw$;
+
+revoke all on function public.get_omada_password(uuid) from public, anon, authenticated;
+grant execute on function public.get_omada_password(uuid) to service_role;
+
+-- ---------- Cleanup: drop obsolete plaintext-era columns -------------
+-- password_enc predates the Vault migration and is always NULL now. Removing
+-- it prevents confusion about where credentials live (answer: Vault only).
+alter table public.router_credentials drop column if exists password_enc;
 

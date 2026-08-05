@@ -41,31 +41,18 @@ Deno.serve(async (req) => {
       return json({ error: 'Controller hii inatumia agent (local)' }, 400);
     }
 
-    // Decrypt password via Vault using service role.
+    // Read decrypted password via SECURITY DEFINER RPC (vault isn't API-exposed).
     const admin = createClient(env('SUPABASE_URL'), env('SUPABASE_SERVICE_ROLE_KEY'));
-    const { data: cred } = await admin
-      .from('omada_credentials')
-      .select('secret_id')
-      .eq('controller_id', controllerId)
-      .single();
-
-    let password = '';
-    if (cred?.secret_id) {
-      const { data: secret } = await admin
-        .schema('vault')
-        .from('decrypted_secrets')
-        .select('decrypted_secret')
-        .eq('id', cred.secret_id)
-        .single();
-      password = secret?.decrypted_secret ?? '';
-    }
+    const { data: password } = await admin.rpc('get_omada_password', {
+      p_controller_id: controllerId,
+    });
 
     const cfg: OmadaConfig = {
       baseUrl: (ctrl.base_url ?? '').replace(/\/$/, ''),
       omadacId: ctrl.omadac_id ?? '',
       site: ctrl.site_id ?? 'Default',
       username: ctrl.username ?? '',
-      password,
+      password: (password as string | null) ?? '',
     };
 
     const result = await runOmadaCommand(cfg, command);

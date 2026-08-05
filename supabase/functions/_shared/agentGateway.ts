@@ -24,23 +24,22 @@ async function agentRouters(admin: SupabaseClient, agent: AgentRow) {
 
   const out = [];
   for (const r of (routers ?? []) as RouterRow[]) {
-    const { data: cred } = await admin
-      .from('router_credentials')
-      .select('secret_id')
-      .eq('router_id', r.id)
-      .single();
-
-    let password = '';
-    if (cred?.secret_id) {
-      const { data: secret } = await admin
-        .schema('vault')
-        .from('decrypted_secrets')
-        .select('decrypted_secret')
-        .eq('id', cred.secret_id)
-        .single();
-      password = secret?.decrypted_secret ?? '';
+    // Read the decrypted password via a SECURITY DEFINER RPC. The vault schema
+    // is not exposed to the API, so a direct query returns null — the RPC reads
+    // it inside the database (where vault is reachable) and returns it.
+    const { data: password, error: pwErr } = await admin.rpc('get_router_password', {
+      p_router_id: r.id,
+    });
+    if (pwErr) {
+      console.error(`get_router_password failed for ${r.id}:`, pwErr.message);
     }
-    out.push({ id: r.id, host: r.host ?? '', apiPort: r.api_port, username: r.username ?? '', password });
+    out.push({
+      id: r.id,
+      host: r.host ?? '',
+      apiPort: r.api_port,
+      username: r.username ?? '',
+      password: (password as string | null) ?? '',
+    });
   }
   return out;
 }
