@@ -1,0 +1,6 @@
+{
+  "version": "1.0.1",
+  "url": "https://your-server.com/agent/hotspot-agent-1.0.1.exe",
+  "sha256": "optional_integrity_hash_here",
+  "notes": "Marekebisho ya reconnect + metrics mpya."
+}

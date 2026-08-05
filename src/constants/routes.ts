@@ -27,6 +27,9 @@ export const ROUTES = {
   // Phase 6 — Packages
   packages: '/packages',
 
+  // Phase 7 — Vouchers
+  vouchers: '/vouchers',
+
   // Fallback
   root: '/',
   notFound: '*',

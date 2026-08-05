@@ -24,6 +24,7 @@ const RouterDetailPage = lazy(() => import('../../features/routers/pages/RouterD
 const OmadaControllersPage = lazy(() => import('../../features/omada/pages/OmadaControllersPage').then((m) => ({ default: m.OmadaControllersPage })));
 const OmadaDetailPage = lazy(() => import('../../features/omada/pages/OmadaDetailPage').then((m) => ({ default: m.OmadaDetailPage })));
 const PackagesPage = lazy(() => import('../../features/packages/pages/PackagesPage').then((m) => ({ default: m.PackagesPage })));
+const VouchersPage = lazy(() => import('../../features/vouchers/pages/VouchersPage').then((m) => ({ default: m.VouchersPage })));
 
 export function AppRouter() {
   return (
@@ -57,6 +58,7 @@ export function AppRouter() {
               <Route path={ROUTES.tplink} element={<OmadaControllersPage />} />
               <Route path={ROUTES.tplinkDetail} element={<OmadaDetailPage />} />
               <Route path={ROUTES.packages} element={<PackagesPage />} />
+              <Route path={ROUTES.vouchers} element={<VouchersPage />} />
             </Route>
           </Route>
 

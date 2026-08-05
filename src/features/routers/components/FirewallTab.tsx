@@ -1,4 +1,4 @@
-import { RouterDataView } from './RouterDataView';
+import { RouterSyncView } from './RouterSyncView';
 import { Badge } from '@/components/ui/Badge';
 import { Alert } from '@/components/feedback/Alert';
 import type { FirewallRule } from '../types/routeros';
@@ -19,9 +19,9 @@ export function FirewallTab({ routerId }: { routerId: string }) {
   return (
     <div className="space-y-3">
       <Alert tone="info">Firewall inaonyeshwa kwa kusoma tu (view-only) kwa usalama.</Alert>
-      <RouterDataView<FirewallRule>
+      <RouterSyncView<FirewallRule>
         routerId={routerId}
-        command="firewall.filter"
+        kind="firewall.filter"
         columns={columns}
         rowKey={(r) => r['.id']}
         emptyTitle="Hakuna firewall rules"

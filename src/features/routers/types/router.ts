@@ -15,6 +15,15 @@ export interface Router {
   osVersion: string | null;
   model: string | null;
   lastSeen: string | null;
+  // Live metrics (heartbeat)
+  cpuLoad: number | null;
+  memUsed: number | null;
+  memTotal: number | null;
+  uptime: string | null;
+  boardName: string | null;
+  connectedUsers: number | null;
+  pingMs: number | null;
+  responseMs: number | null;
   isActive: boolean;
   createdAt: string;
 }

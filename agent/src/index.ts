@@ -1,58 +1,59 @@
-import { config } from './config.js';
-import { log } from './logger.js';
-import { poll } from './api/poll.js';
-import { report } from './api/report.js';
-import { executeBatch } from './executor.js';
+// Entry point: load config, configure logging, run the orchestrator.
+// On a restart request or fatal error, exit with code 1 so the Windows
+// Service / PM2 / Docker restart policy brings the agent back up.
 
-let running = true;
+import { loadConfig } from './security/config.js';
+import { Orchestrator } from './agent-core/Orchestrator.js';
+import { startUpdater } from './updater/updater.js';
+import { createLogger, setLogLevel } from './logging/logger.js';
 
-async function tick(): Promise<void> {
-  const data = await poll();
+const log = createLogger('main');
+const VERSION = '1.0.0';
 
-  if (!data.router) {
-    // Agent not linked to a router yet; nothing to do but heartbeat is
-    // already recorded server-side on poll.
-    return;
-  }
-
-  // Always report status; run commands if any are pending.
-  const { results, status } = await executeBatch(data.router, data.commands ?? []);
-
-  await report({
-    results: results.length ? results : undefined,
-    status,
+async function main(): Promise<void> {
+  const cfg = await loadConfig();
+  setLogLevel(cfg.logLevel);
+  log.info('Hotspot Billing — Enterprise Agent', {
+    version: VERSION,
+    heartbeat: cfg.heartbeat,
+    poll: cfg.pollInterval,
   });
 
-  if (results.length) {
-    log.info(`Executed ${results.length} command(s)`);
+  const orchestrator = new Orchestrator(cfg);
+
+  // Optional auto-updater: enabled when UPDATE_MANIFEST_URL is configured.
+  let stopUpdater: (() => void) | null = null;
+  const manifestUrl = process.env.UPDATE_MANIFEST_URL;
+  if (manifestUrl) {
+    stopUpdater = startUpdater({
+      currentVersion: VERSION,
+      manifestUrl,
+      intervalMs: Number(process.env.UPDATE_INTERVAL ?? 3600000), // hourly
+      onUpdateReady: () => {
+        log.info('Update tayari — nazima ili service manager iweke toleo jipya');
+        void orchestrator.stop().then(() => process.exit(1));
+      },
+    });
+  }
+
+  const shutdown = async (signal: string) => {
+    log.info(`Nasitisha (${signal})`);
+    stopUpdater?.();
+    await orchestrator.stop();
+    process.exit(0);
+  };
+  process.on('SIGINT', () => void shutdown('SIGINT'));
+  process.on('SIGTERM', () => void shutdown('SIGTERM'));
+
+  await orchestrator.start();
+
+  if (orchestrator.wantsRestart()) {
+    log.info('Natoka kwa restart (service manager itaanzisha upya)');
+    process.exit(1);
   }
 }
 
-async function mainLoop(): Promise<void> {
-  log.info('Hotspot Billing Agent imeanza');
-  log.info(`Server: ${config.supabaseUrl}`);
-  log.info(`Poll kila ${config.pollIntervalMs}ms`);
-
-  while (running) {
-    try {
-      await tick();
-    } catch (e) {
-      log.error('tick error', String(e));
-    }
-    await new Promise((r) => setTimeout(r, config.pollIntervalMs));
-  }
-}
-
-function shutdown(signal: string): void {
-  log.info(`Imepokea ${signal}, inasimama...`);
-  running = false;
-  setTimeout(() => process.exit(0), 500);
-}
-
-process.on('SIGINT', () => shutdown('SIGINT'));
-process.on('SIGTERM', () => shutdown('SIGTERM'));
-
-mainLoop().catch((e) => {
-  log.error('fatal', String(e));
+main().catch((e) => {
+  log.error('Hitilafu kubwa', String(e));
   process.exit(1);
 });

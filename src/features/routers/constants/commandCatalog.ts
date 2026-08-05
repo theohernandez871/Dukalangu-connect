@@ -8,17 +8,23 @@
 export type RouterCommandKey =
   | 'identity'
   | 'resource'
+  | 'sync.all'
   | 'hotspot.active'
   | 'hotspot.users'
   | 'hotspot.profiles'
   | 'hotspot.kick'
+  | 'hotspot.create_user'
+  | 'hotspot.delete_user'
+  | 'hotspot.create_profile'
+  | 'hotspot.update_profile'
   | 'pppoe.secrets'
   | 'pppoe.active'
   | 'pppoe.disconnect'
   | 'ppp.profiles'
   | 'dhcp.leases'
   | 'queue.simple'
-  | 'firewall.filter';
+  | 'firewall.filter'
+  | 'agent.restart';
 
 export interface CommandMeta {
   key: RouterCommandKey;
@@ -30,10 +36,15 @@ export interface CommandMeta {
 export const COMMAND_CATALOG: Record<RouterCommandKey, CommandMeta> = {
   identity: { key: 'identity', label: 'Kitambulisho', mutating: false },
   resource: { key: 'resource', label: 'Rasilimali (CPU/RAM)', mutating: false },
+  'sync.all': { key: 'sync.all', label: 'Sync yote', mutating: false },
   'hotspot.active': { key: 'hotspot.active', label: 'Watumiaji hai (Hotspot)', mutating: false },
   'hotspot.users': { key: 'hotspot.users', label: 'Watumiaji wote (Hotspot)', mutating: false },
   'hotspot.profiles': { key: 'hotspot.profiles', label: 'Profiles za Hotspot', mutating: false },
   'hotspot.kick': { key: 'hotspot.kick', label: 'Ondoa mtumiaji', mutating: true },
+  'hotspot.create_user': { key: 'hotspot.create_user', label: 'Tengeneza voucher/user', mutating: true },
+  'hotspot.delete_user': { key: 'hotspot.delete_user', label: 'Futa voucher/user', mutating: true },
+  'hotspot.create_profile': { key: 'hotspot.create_profile', label: 'Tengeneza package/profile', mutating: true },
+  'hotspot.update_profile': { key: 'hotspot.update_profile', label: 'Sasisha package/profile', mutating: true },
   'pppoe.secrets': { key: 'pppoe.secrets', label: 'Akaunti za PPPoE', mutating: false },
   'pppoe.active': { key: 'pppoe.active', label: 'Muunganisho hai (PPPoE)', mutating: false },
   'pppoe.disconnect': { key: 'pppoe.disconnect', label: 'Kata muunganisho', mutating: true },
@@ -41,6 +52,7 @@ export const COMMAND_CATALOG: Record<RouterCommandKey, CommandMeta> = {
   'dhcp.leases': { key: 'dhcp.leases', label: 'DHCP Leases', mutating: false },
   'queue.simple': { key: 'queue.simple', label: 'Simple Queues', mutating: false },
   'firewall.filter': { key: 'firewall.filter', label: 'Firewall (kusoma)', mutating: false },
+  'agent.restart': { key: 'agent.restart', label: 'Restart Agent', mutating: true },
 };
 
 export function isValidCommand(key: string): key is RouterCommandKey {

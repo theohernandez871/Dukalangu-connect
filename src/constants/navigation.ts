@@ -40,7 +40,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'TP-Link', to: ROUTES.tplink, icon: WifiIcon, permission: 'router:view', enabled: true },
   { label: 'Hotspot', to: '/hotspot', icon: WifiIcon, permission: 'router:view', enabled: false },
   { label: 'Vifurushi', to: ROUTES.packages, icon: TicketIcon, permission: 'package:view', enabled: true },
-  { label: 'Vocha', to: '/vouchers', icon: TicketIcon, permission: 'voucher:view', enabled: false },
+  { label: 'Vocha', to: ROUTES.vouchers, icon: TicketIcon, permission: 'voucher:view', enabled: true },
   { label: 'Malipo', to: '/payments', icon: CreditCardIcon, permission: 'payment:view', enabled: false },
   { label: 'Ripoti', to: '/reports', icon: ChartBarIcon, permission: 'report:view', enabled: false },
   { label: 'Arifa', to: '/notifications', icon: BellAlertIcon, enabled: false },

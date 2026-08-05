@@ -7,6 +7,7 @@ import { RouterList } from '../components/RouterList';
 import { RouterFormDialog } from '../components/RouterFormDialog';
 import { AgentList } from '../components/AgentList';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useRouterRealtime } from '../hooks/useRouterRealtime';
 
 const TABS: TabItem[] = [
   { id: 'routers', label: 'Routers', icon: <ServerStackIcon className="h-4 w-4" /> },
@@ -18,6 +19,7 @@ export function RoutersPage() {
   const [creating, setCreating] = useState(false);
   const { hasPermission } = useAuth();
   const canManage = hasPermission('router:manage');
+  useRouterRealtime();
 
   return (
     <div>

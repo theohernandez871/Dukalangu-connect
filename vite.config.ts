@@ -9,6 +9,7 @@ function manualChunks(id: string): string | undefined {
   if (id.includes('@tanstack') || id.includes('@supabase')) return 'data-vendor';
   if (id.includes('react-hook-form') || id.includes('zod') || id.includes('@hookform')) return 'form-vendor';
   if (id.includes('apexcharts')) return 'chart-vendor';
+  if (id.includes('jspdf') || id.includes('qrcode') || id.includes('jsbarcode')) return 'voucher-vendor';
   if (id.includes('framer-motion')) return 'motion-vendor';
   return undefined;
 }

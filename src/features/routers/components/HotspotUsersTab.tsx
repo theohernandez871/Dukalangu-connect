@@ -1,4 +1,4 @@
-import { RouterDataView } from './RouterDataView';
+import { RouterSyncView } from './RouterSyncView';
 import { Badge } from '@/components/ui/Badge';
 import type { HotspotUser } from '../types/routeros';
 import type { Column } from '@/components/data/dataTable.types';
@@ -16,9 +16,9 @@ const columns: Column<HotspotUser>[] = [
 
 export function HotspotUsersTab({ routerId }: { routerId: string }) {
   return (
-    <RouterDataView<HotspotUser>
+    <RouterSyncView<HotspotUser>
       routerId={routerId}
-      command="hotspot.users"
+      kind="hotspot.users"
       columns={columns}
       rowKey={(r) => r['.id']}
       emptyTitle="Hakuna watumiaji wa hotspot"

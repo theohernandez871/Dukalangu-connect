@@ -6,6 +6,7 @@ import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { FullPageLoader } from '@/components/feedback/FullPageLoader';
 import { ErrorState } from '@/components/feedback/ErrorState';
 import { RouterStatusBadge } from '../components/RouterStatusBadge';
+import { RouterCommandControls } from '../components/RouterCommandControls';
 import { RouterOverview } from '../components/RouterOverview';
 import { HotspotTab } from '../components/HotspotTab';
 import { PppoeTab } from '../components/PppoeTab';
@@ -14,6 +15,7 @@ import { QueuesTab } from '../components/QueuesTab';
 import { FirewallTab } from '../components/FirewallTab';
 import { ProfilesTab } from '../components/ProfilesTab';
 import { useRouter } from '../hooks/useRouters';
+import { useRouterRealtime } from '../hooks/useRouterRealtime';
 import { ROUTES } from '@/constants/routes';
 
 const TABS: TabItem[] = [
@@ -31,6 +33,7 @@ export function RouterDetailPage() {
   const navigate = useNavigate();
   const { data: router, isLoading, isError, refetch } = useRouter(id);
   const [tab, setTab] = useState('overview');
+  useRouterRealtime();
 
   if (isLoading) return <FullPageLoader />;
   if (isError || !router) return <ErrorState onRetry={() => refetch()} />;
@@ -47,7 +50,12 @@ export function RouterDetailPage() {
       <PageHeader
         title={router.name}
         subtitle={router.connectionType === 'agent' ? 'Kupitia Agent' : `${router.host}:${router.apiPort}`}
-        actions={<RouterStatusBadge status={router.status} />}
+        actions={
+          <div className="flex flex-col items-end gap-2">
+            <RouterStatusBadge status={router.status} />
+            <RouterCommandControls routerId={router.id} />
+          </div>
+        }
       />
 
       <Tabs tabs={TABS} active={tab} onChange={setTab} />

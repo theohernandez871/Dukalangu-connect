@@ -1,171 +1,154 @@
-# Hotspot Billing Agent
+# Hotspot Billing — Enterprise Agent
 
-Agent hii ndogo huunganisha router yako ya MikroTik na mfumo wa Hotspot Billing.
-Inaishi **ndani ya mtandao wako** na huunganisha **nje kwenda** kwa server — hivyo
-inafanya kazi hata kama router yako iko nyuma ya CGNAT/NAT (haihitaji public IP).
+Agent inayosakinishwa kwa mteja, inayounganisha **MikroTik RouterOS** na mfumo wa Hotspot Billing. Ni njia **pekee** ya kuunganisha routers (Direct API imeondolewa).
+
+## Sifa
+
+- **Multi-router** — agent moja inasimamia routers nyingi za kampuni
+- **Auto-reconnect** — router/internet ikikatika, inaunganisha upya yenyewe
+- **Heartbeat** kila sekunde 30 — dashboard inajua Online/Offline + metrics
+- **Encrypted token** — token haihifadhiwi wazi (AES-256-GCM, machine-bound)
+- **Command queue** — inapokea amri kutoka server (sync, disconnect, restart, voucher/package)
+- **Real-time sync** — inasukuma data ya RouterOS; dashboard inaona papo hapo (Supabase Realtime)
+- **Auto-update** (hiari) — inakagua toleo jipya na kuomba restart
+- **Logging** — faili za kila siku + rotation
+- **Windows Service** (na tayari kwa Linux)
+
+## Mahitaji
+
+- **Node.js 18+** (https://nodejs.org — LTS)
+- Kifaa (PC ndogo, Raspberry Pi, au server) kwenye **mtandao ule ule wa router**
+- Kwenye RouterOS: washa API — `/ip service enable api`
+
+## Usanidi (.env)
+
+Nakili `.env.example` -> `.env`, weka:
+
+```
+SUPABASE_URL="https://xxxx.supabase.co"
+SUPABASE_ANON_KEY="anon_key_yako"
+AGENT_TOKEN="token_kutoka_dashboard"
+```
+
+Token unaipata: **Dashboard -> Routers -> Agents -> Tengeneza agent** (inaonyeshwa **mara moja tu**).
+
+> Baada ya kuanzishwa mara ya kwanza, token huhifadhiwa encrypted (`.agent-data/`), hivyo huhitaji kuiweka tena kwenye env.
 
 ---
 
-## Inavyofanya kazi
+## Njia 3 za kuendesha
 
-1. Agent inauliza server kila sekunde chache: "kuna amri?"
-2. Server inarudisha maelezo ya router + amri zozote zinazosubiri
-3. Agent inaunganisha na RouterOS (API port 8728) **ndani** ya mtandao
-4. Inatekeleza amri, inarudisha matokeo + hali ya router
-5. Nywila ya router haihifadhiwi kwenye agent — inatumika kwa muda wa amri tu
+### 1. Windows Service (inapendekezwa kwa production)
 
----
+Njia rahisi — endesha skripti (kama **Administrator**):
 
-## Kabla ya kuanza
+```
+build\install-windows.bat
+```
 
-Utahitaji:
-- **Node.js 18+** (au Docker) kwenye kifaa kilicho kwenye mtandao ule ule wa router
-  (kompyuta ndogo, mini-PC, Raspberry Pi, n.k.)
-- **API service** iwe imewashwa kwenye RouterOS:
-  - RouterOS: `/ip service enable api`
-  - Hakikisha port 8728 inafikika kutoka kifaa cha agent
-- **Token ya agent** — itengeneze kwenye dashboard:
-  Routers → Agents → "Tengeneza agent". Token inaonyeshwa **mara moja tu** — inakili.
-- **SUPABASE_URL** na **SUPABASE_ANON_KEY** (Project Settings → API kwenye Supabase)
+Au kwa mkono:
 
----
-
-## Njia 1: Node.js moja kwa moja (rahisi)
-
-```bash
-# 1. Ingia kwenye folda ya agent
-cd agent
-
-# 2. Sakinisha dependencies
-npm install
-
-# 3. Tengeneza faili la mazingira
-cp .env.example .env
-# Hariri .env, weka SUPABASE_URL, SUPABASE_ANON_KEY, AGENT_TOKEN
-
-# 4. Build
+```powershell
+npm install --omit=dev
+npm install node-windows
 npm run build
+npm run service:install
+```
 
-# 5. Endesha
+Service **HotspotBillingAgent** itajianzisha yenyewe kila Windows inapowashwa. Angalia kwenye `services.msc`.
+
+Kuondoa: `build\uninstall-windows.bat` (au `npm run service:uninstall`).
+
+### 2. Node.js moja kwa moja (majaribio)
+
+```powershell
+npm install
+npm run build
 npm start
 ```
 
-Ukiona `Hotspot Billing Agent imeanza`, imefanikiwa. Rudi kwenye dashboard —
-agent itaonekana "Imeunganishwa", na router itaonyesha hali yake.
-
-> **Kupima haraka:** kwenye dashboard, bonyeza router → "Jaribu". Ukiona
-> kitambulisho cha router, kila kitu kinafanya kazi.
-
----
-
-## Njia 2: PM2 (service inayojianzisha)
-
-PM2 huendesha agent kama service inayojirudi yenyewe ikizimika, na kujianzisha
-kompyuta ikiwashwa upya. Nzuri kwa production.
+### 3. Docker
 
 ```bash
-# Sakinisha PM2 (mara moja tu)
-npm install -g pm2
-
-cd agent
-npm install
-cp .env.example .env      # hariri .env kama juu
-npm run build
-
-# Anzisha kupitia PM2
-pm2 start ecosystem.config.cjs
-
-# Hakikisha inajianzisha kompyuta ikiwashwa
-pm2 save
-pm2 startup             # fuata maelekezo yatakayoonyeshwa
-
-# Amri muhimu
-pm2 logs hotspot-agent  # ona kumbukumbu
-pm2 restart hotspot-agent
-pm2 stop hotspot-agent
-```
-
-> **Kumbuka:** PM2 haisomi `.env` yenyewe kwa njia zote. Kama variables
-> hazikupatikana, ziweke moja kwa moja au tumia:
-> `pm2 start ecosystem.config.cjs --env production` baada ya kuweka variables
-> kwenye `ecosystem.config.cjs`, au endesha kupitia `env $(cat .env) pm2 start ...`.
-
----
-
-## Njia 3: Docker
-
-```bash
-cd agent
-
-# Jenga image
 docker build -t hotspot-agent .
-
-# Endesha (weka variables zako)
-docker run -d \
-  --name hotspot-agent \
-  --restart unless-stopped \
-  -e SUPABASE_URL="https://YOUR_PROJECT.supabase.co" \
-  -e SUPABASE_ANON_KEY="YOUR_ANON_KEY" \
-  -e AGENT_TOKEN="your_agent_token" \
-  hotspot-agent
-
-# Ona kumbukumbu
-docker logs -f hotspot-agent
+docker run -d --name hotspot-agent --env-file .env --network host hotspot-agent
 ```
 
-Au kwa `docker compose` (tengeneza `docker-compose.yml`):
-
-```yaml
-services:
-  agent:
-    build: .
-    restart: unless-stopped
-    environment:
-      SUPABASE_URL: "https://YOUR_PROJECT.supabase.co"
-      SUPABASE_ANON_KEY: "YOUR_ANON_KEY"
-      AGENT_TOKEN: "your_agent_token"
-```
-
-```bash
-docker compose up -d
-```
+> `--network host` inasaidia agent kufikia router kwenye LAN.
 
 ---
 
-## Mazingira (Environment variables)
+## Kujenga `.exe` (standalone)
 
-| Variable | Lazima? | Maelezo |
+Kwenye Windows yenye Node.js:
+
+```powershell
+npm install
+npm run build:exe
+```
+
+`.exe` itapatikana `build\hotspot-agent.exe`. Inaweza kuendeshwa bila Node.js kusakinishwa.
+
+---
+
+## Auto-update (hiari)
+
+Weka kwenye `.env`:
+
+```
+UPDATE_MANIFEST_URL="https://server-yako.com/agent/version.json"
+UPDATE_INTERVAL=3600000
+```
+
+Manifest (mfano `build/version.example.json`):
+
+```json
+{ "version": "1.0.1", "url": "https://.../hotspot-agent-1.0.1.exe" }
+```
+
+Agent ikigundua toleo jipya, inaomba restart; service manager inaweka toleo jipya.
+
+---
+
+## Variables zote
+
+| Variable | Default | Maelezo |
 |----------|---------|---------|
-| `SUPABASE_URL` | Ndiyo | URL ya project (https://xxxx.supabase.co) |
-| `SUPABASE_ANON_KEY` | Ndiyo | Anon key ya Supabase |
-| `AGENT_TOKEN` | Ndiyo | Token kutoka dashboard (mara moja) |
-| `POLL_INTERVAL_MS` | Hapana | Muda wa kupoll (default 3000) |
-| `ROUTER_TIMEOUT_MS` | Hapana | Timeout ya router (default 8000) |
-| `ROUTER_HOST` | Hapana | Lazimisha IP ya router (kawaida haihitajiki) |
+| `SUPABASE_URL` | - | **Lazima** |
+| `SUPABASE_ANON_KEY` | - | **Lazima** |
+| `AGENT_TOKEN` | - | **Lazima** (mara ya kwanza) |
+| `POLL_INTERVAL` | 3000 | ms kati ya poll za commands |
+| `HEARTBEAT_INTERVAL` | 30000 | ms kati ya heartbeat |
+| `API_TIMEOUT` | 8000 | ms timeout ya RouterOS |
+| `LOG_LEVEL` | info | debug/info/warn/error |
+| `AGENT_SECRET` | default | Siri ya ziada kwa encryption |
+| `UPDATE_MANIFEST_URL` | - | Hiari (auto-update) |
 
 ---
 
-## Matatizo ya kawaida
+## Muundo (modules)
 
-**Agent haionekani "Imeunganishwa":**
-- Hakikisha `AGENT_TOKEN` ni sahihi (haikukatwa wakati wa kunakili)
-- Hakikisha `SUPABASE_URL` na `SUPABASE_ANON_KEY` ni sahihi
-- Angalia kumbukumbu kwa makosa
-
-**"Muunganisho umeshindikana" wakati wa kujaribu router:**
-- API service imewashwa? `/ip service print` kwenye RouterOS
-- Port 8728 inafikika kutoka kifaa cha agent? (jaribu `telnet ROUTER_IP 8728`)
-- Jina la mtumiaji/nywila ni sahihi kwenye dashboard?
-- Firewall ya router inaruhusu API kutoka kwenye mtandao wa ndani?
-
-**Agent inasimama ghafla:**
-- Tumia PM2 au Docker `--restart unless-stopped` ili ijirudi yenyewe
-
----
+```
+agent-core/      Orchestrator + RouterWorker (multi-router lifecycle)
+router-api/      RouterOS API client (8728/8729) + auto-reconnect
+sync-engine/     collect metrics + all RouterOS data
+ws-client/       server transport (poll/heartbeat/sync/ack)
+command-handler/ execute server commands
+security/        config + encrypted token store
+logging/         structured logs + rotation
+installer/       Windows Service install/uninstall
+updater/         auto-update checker
+```
 
 ## Usalama
 
-- Agent inatumia **token** tu (si key ya juu ya mfumo). Ikivuja, ifute kwenye
-  dashboard (Agents → ondoa) na itengeneze mpya.
-- Agent **haifungui** port yoyote ya kuingia — muunganisho ni wa nje tu.
-- Nywila ya router hupokelewa kwa muda wa amri tu; **haiandikwi kwenye disk**.
+- Token: sha256 hash server-side; encrypted at rest client-side
+- Router password: inapokelewa kwa muda wa amri tu; haiandikwi disk
+- Outbound-only: agent haifungui port yoyote ya kuingia (CGNAT-safe)
+- Mawasiliano yote HTTPS
+
+## Matatizo ya kawaida
+
+- **"AGENT_TOKEN haijawekwa"** -> weka token kwenye `.env` mara ya kwanza
+- **"Imeshindwa kuunganisha"** -> hakikisha `/ip service enable api` na firewall inaruhusu port 8728 kwenye LAN
+- **Router inaonyesha Offline** -> agent haiendeshi, au haifikii router; angalia `logs/`

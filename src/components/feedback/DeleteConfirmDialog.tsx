@@ -8,6 +8,7 @@ interface DeleteConfirmDialogProps {
   title?: string;
   message: string;
   isLoading?: boolean;
+  confirmLabel?: string;
 }
 
 export function DeleteConfirmDialog({
@@ -17,6 +18,7 @@ export function DeleteConfirmDialog({
   title = 'Thibitisha kufuta',
   message,
   isLoading,
+  confirmLabel = 'Futa',
 }: DeleteConfirmDialogProps) {
   return (
     <Dialog
@@ -30,7 +32,7 @@ export function DeleteConfirmDialog({
             Ghairi
           </Button>
           <Button variant="danger" onClick={onConfirm} isLoading={isLoading}>
-            Futa
+            {confirmLabel}
           </Button>
         </>
       }

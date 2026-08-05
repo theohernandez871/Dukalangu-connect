@@ -1,10 +1,11 @@
 -- =====================================================================
--- HOTSPOT BILLING SYSTEM — MIGRATIONS ZOTE (PHASE 1–6)
+-- HOTSPOT BILLING SYSTEM — MIGRATIONS ZOTE (PHASE 1–8A)
 -- =====================================================================
 -- Bandika faili hili LOTE kwenye Supabase SQL Editor kisha bonyeza RUN.
 -- Ni salama kuendesha mara nyingi (idempotent).
--- Toleo: v7 (imeongeza Phase 6: packages - flexible schema).
+-- Toleo: v9 (imeongeza 8A: agent metrics, realtime, sync cache, offline sweep).
 -- Inahitaji "supabase_vault" + "pgcrypto" (SQL inaziwasha yenyewe).
+-- Hiari: "pg_cron" kwa offline sweep otomatiki (dashboard ina fallback).
 -- =====================================================================
 
 
@@ -1275,4 +1276,303 @@ create policy packages_delete on public.packages
         and p.role in ('super_admin','company_owner','branch_manager')
     )
   );
+
+
+-- #####################################################################
+-- FROM: 0013_vouchers.sql
+-- #####################################################################
+
+-- =====================================================================
+-- PHASE 7 — VOUCHER MANAGEMENT
+-- Numeric codes (keypad-friendly). Batches group vouchers.
+-- generate_vouchers() creates many unique codes atomically.
+-- Dollar-quotes: unique tags.
+-- =====================================================================
+
+-- ---------- Enum -----------------------------------------------------
+do $vchenum$
+begin
+  if not exists (select 1 from pg_type where typname = 'voucher_status') then
+    create type public.voucher_status as enum ('unused', 'used', 'expired', 'disabled');
+  end if;
+end;
+$vchenum$;
+
+-- ---------- Voucher batches ------------------------------------------
+create table if not exists public.voucher_batches (
+  id           uuid primary key default gen_random_uuid(),
+  company_id   uuid not null references public.companies(id) on delete cascade,
+  branch_id    uuid references public.branches(id) on delete set null,
+  package_id   uuid references public.packages(id) on delete set null,
+  count        integer not null default 0,
+  prefix       text,
+  notes        text,
+  created_by   uuid references auth.users(id) on delete set null,
+  created_at   timestamptz not null default now()
+);
+
+create index if not exists idx_batches_company on public.voucher_batches(company_id);
+
+-- ---------- Vouchers -------------------------------------------------
+create table if not exists public.vouchers (
+  id           uuid primary key default gen_random_uuid(),
+  company_id   uuid not null references public.companies(id) on delete cascade,
+  batch_id     uuid references public.voucher_batches(id) on delete cascade,
+  package_id   uuid references public.packages(id) on delete set null,
+  code         text not null,
+  status       public.voucher_status not null default 'unused',
+  used_at      timestamptz,
+  used_by      text,                       -- device MAC / identifier (Phase 8)
+  expires_at   timestamptz,
+  created_at   timestamptz not null default now(),
+  unique (company_id, code)
+);
+
+create index if not exists idx_vouchers_company on public.vouchers(company_id, status);
+create index if not exists idx_vouchers_batch on public.vouchers(batch_id);
+create index if not exists idx_vouchers_code on public.vouchers(company_id, code);
+
+-- ---------- Generate a batch of numeric vouchers --------------------
+-- Returns the new batch_id. Codes are numeric, `p_length` digits,
+-- optionally grouped for display client-side.
+create or replace function public.generate_vouchers(
+  p_package_id uuid,
+  p_count      integer,
+  p_length     integer default 8,
+  p_prefix     text default null,
+  p_notes      text default null,
+  p_branch_id  uuid default null,
+  p_valid_days integer default null
+)
+returns uuid
+language plpgsql
+security definer
+set search_path = public, extensions
+as $genvouchers$
+declare
+  _company   uuid := public.current_company_id();
+  _batch_id  uuid;
+  _code      text;
+  _made      integer := 0;
+  _attempts  integer := 0;
+  _expires   timestamptz;
+begin
+  if _company is null then
+    raise exception 'Haujaidhinishwa';
+  end if;
+  if not exists (
+    select 1 from public.profiles p
+    where p.id = auth.uid()
+      and p.role in ('super_admin','company_owner','branch_manager','sales_agent')
+  ) then
+    raise exception 'Hauna ruhusa ya kutengeneza vocha';
+  end if;
+  if p_count < 1 or p_count > 1000 then
+    raise exception 'Idadi lazima iwe kati ya 1 na 1000';
+  end if;
+
+  if p_valid_days is not null then
+    _expires := now() + (p_valid_days || ' days')::interval;
+  end if;
+
+  insert into public.voucher_batches (company_id, branch_id, package_id, count, prefix, notes, created_by)
+  values (_company, p_branch_id, p_package_id, p_count, p_prefix, p_notes, auth.uid())
+  returning id into _batch_id;
+
+  while _made < p_count and _attempts < p_count * 20 loop
+    _attempts := _attempts + 1;
+    -- Random numeric string of p_length digits.
+    _code := lpad((floor(random() * (10::numeric ^ p_length)))::bigint::text, p_length, '0');
+    if p_prefix is not null and p_prefix <> '' then
+      _code := p_prefix || _code;
+    end if;
+
+    begin
+      insert into public.vouchers (company_id, batch_id, package_id, code, expires_at)
+      values (_company, _batch_id, p_package_id, _code, _expires);
+      _made := _made + 1;
+    exception when unique_violation then
+      -- Collision: try another code.
+      null;
+    end;
+  end loop;
+
+  update public.voucher_batches set count = _made where id = _batch_id;
+
+  insert into public.audit_logs (company_id, actor_id, action, metadata)
+  values (_company, auth.uid(), 'voucher.batch_create',
+          jsonb_build_object('count', _made, 'batch', _batch_id));
+
+  return _batch_id;
+end;
+$genvouchers$;
+
+-- ---------- RLS ------------------------------------------------------
+alter table public.voucher_batches enable row level security;
+alter table public.vouchers        enable row level security;
+
+drop policy if exists batches_select on public.voucher_batches;
+create policy batches_select on public.voucher_batches
+  for select using (company_id = public.current_company_id());
+
+drop policy if exists vouchers_select on public.vouchers;
+create policy vouchers_select on public.vouchers
+  for select using (company_id = public.current_company_id());
+
+-- Disabling/enabling individual vouchers by admins.
+drop policy if exists vouchers_update on public.vouchers;
+create policy vouchers_update on public.vouchers
+  for update using (company_id = public.current_company_id() and public.is_company_admin())
+  with check (company_id = public.current_company_id());
+
+-- Deleting a batch (cascades to its vouchers) by admins.
+drop policy if exists batches_delete on public.voucher_batches;
+create policy batches_delete on public.voucher_batches
+  for delete using (company_id = public.current_company_id() and public.is_company_admin());
+
+-- Inserts happen only via generate_vouchers() (SECURITY DEFINER).
+
+
+-- #####################################################################
+-- FROM: 0014_agent_realtime.sql
+-- #####################################################################
+
+-- =====================================================================
+-- PHASE 8A-1 — ENTERPRISE AGENT: metrics, commands, sync cache, realtime
+-- Transport: agent long-polling (in) + Supabase Realtime (dashboard out).
+-- Agent becomes the ONLY connection method (direct deprecated).
+-- Dollar-quotes: unique tags.
+-- =====================================================================
+
+-- ---------- Router live metrics (updated by heartbeat) --------------
+alter table public.routers
+  add column if not exists cpu_load       integer,
+  add column if not exists mem_used       bigint,
+  add column if not exists mem_total      bigint,
+  add column if not exists uptime         text,
+  add column if not exists board_name     text,
+  add column if not exists connected_users integer,
+  add column if not exists ping_ms        integer,
+  add column if not exists response_ms    integer,
+  add column if not exists agent_id       uuid references public.router_agents(id) on delete set null;
+
+-- Default new routers to 'agent' connection; deprecate 'direct' in UI.
+alter table public.routers
+  alter column connection_type set default 'agent';
+
+-- ---------- Expanded command set ------------------------------------
+-- Extend allowed commands via a catalog table (server-validated).
+create table if not exists public.router_command_catalog (
+  command   text primary key,
+  label     text not null,
+  mutating  boolean not null default false
+);
+
+insert into public.router_command_catalog (command, label, mutating) values
+  ('identity', 'Kitambulisho', false),
+  ('resource', 'Rasilimali', false),
+  ('sync.all', 'Sync yote', false),
+  ('hotspot.active', 'Watumiaji hai', false),
+  ('hotspot.users', 'Watumiaji wa hotspot', false),
+  ('hotspot.profiles', 'Profiles za hotspot', false),
+  ('hotspot.kick', 'Ondoa mtumiaji', true),
+  ('hotspot.create_user', 'Tengeneza voucher/user', true),
+  ('hotspot.delete_user', 'Futa voucher/user', true),
+  ('hotspot.create_profile', 'Tengeneza package/profile', true),
+  ('hotspot.update_profile', 'Sasisha package/profile', true),
+  ('pppoe.secrets', 'Akaunti za PPPoE', false),
+  ('pppoe.active', 'PPPoE hai', false),
+  ('pppoe.disconnect', 'Kata PPPoE', true),
+  ('ppp.profiles', 'Profiles za PPP', false),
+  ('dhcp.leases', 'DHCP leases', false),
+  ('queue.simple', 'Simple queues', false),
+  ('firewall.filter', 'Firewall', false),
+  ('agent.restart', 'Restart agent', true)
+on conflict (command) do update set label = excluded.label, mutating = excluded.mutating;
+
+-- ---------- Synced router data cache --------------------------------
+-- The agent pushes RouterOS data here so the dashboard reads from DB
+-- (real-time via Supabase Realtime) instead of waiting for a command.
+create table if not exists public.router_sync_data (
+  id           bigint generated always as identity primary key,
+  router_id    uuid not null references public.routers(id) on delete cascade,
+  company_id   uuid not null references public.companies(id) on delete cascade,
+  kind         text not null,             -- 'hotspot.active','pppoe.secrets',...
+  payload      jsonb not null default '[]'::jsonb,
+  synced_at    timestamptz not null default now(),
+  unique (router_id, kind)
+);
+
+create index if not exists idx_sync_router on public.router_sync_data(router_id);
+
+-- ---------- RLS for new tables --------------------------------------
+alter table public.router_sync_data enable row level security;
+
+drop policy if exists sync_select on public.router_sync_data;
+create policy sync_select on public.router_sync_data
+  for select using (company_id = public.current_company_id());
+
+-- catalog is world-readable reference data.
+alter table public.router_command_catalog enable row level security;
+drop policy if exists catalog_select on public.router_command_catalog;
+create policy catalog_select on public.router_command_catalog
+  for select using (true);
+
+-- Sync writes happen via service-role (agent endpoints) only.
+
+-- ---------- Offline detection ---------------------------------------
+-- Marks routers offline when their last heartbeat is older than the
+-- threshold (default 90s = 3 missed 30s beats). Called by a cron job
+-- and/or on dashboard load.
+create or replace function public.mark_stale_routers_offline(p_threshold_seconds integer default 90)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $markoffline$
+declare
+  _count integer;
+begin
+  update public.routers
+     set status = 'offline'
+   where status = 'online'
+     and last_seen is not null
+     and last_seen < now() - make_interval(secs => p_threshold_seconds);
+  get diagnostics _count = row_count;
+  return _count;
+end;
+$markoffline$;
+
+-- ---------- Enable Realtime for dashboard live updates --------------
+-- Adds tables to the realtime publication (idempotent-safe).
+do $realtime$
+begin
+  begin
+    alter publication supabase_realtime add table public.routers;
+  exception when duplicate_object then null; end;
+  begin
+    alter publication supabase_realtime add table public.router_sync_data;
+  exception when duplicate_object then null; end;
+  begin
+    alter publication supabase_realtime add table public.router_commands;
+  exception when duplicate_object then null; end;
+end;
+$realtime$;
+
+-- ---------- Cron: sweep offline routers every minute -----------------
+-- Uses pg_cron if available. Safe if the extension is absent.
+do $cron$
+begin
+  if exists (select 1 from pg_extension where extname = 'pg_cron') then
+    perform cron.schedule(
+      'mark-stale-routers-offline',
+      '* * * * *',
+      $job$ select public.mark_stale_routers_offline(90); $job$
+    );
+  end if;
+exception when others then
+  -- If scheduling fails (permissions/duplicate), ignore; dashboard also sweeps.
+  null;
+end;
+$cron$;
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PowerIcon } from '@heroicons/react/24/outline';
-import { RouterDataView } from './RouterDataView';
+import { RouterSyncView } from './RouterSyncView';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Tabs, type TabItem } from '@/components/ui/Tabs';
@@ -44,9 +44,9 @@ export function PppoeTab({ routerId }: { routerId: string }) {
       <Tabs tabs={TABS} active={tab} onChange={setTab} />
       {tab === 'active' ? (
         <>
-          <RouterDataView<PppActive>
+          <RouterSyncView<PppActive>
             routerId={routerId}
-            command="pppoe.active"
+            kind="pppoe.active"
             columns={activeCols}
             rowKey={(r) => r['.id']}
             emptyTitle="Hakuna muunganisho hai"
@@ -75,9 +75,9 @@ export function PppoeTab({ routerId }: { routerId: string }) {
           />
         </>
       ) : (
-        <RouterDataView<PppSecret>
+        <RouterSyncView<PppSecret>
           routerId={routerId}
-          command="pppoe.secrets"
+          kind="pppoe.secrets"
           columns={secretCols}
           rowKey={(r) => r['.id']}
           emptyTitle="Hakuna akaunti za PPPoE"

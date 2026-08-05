@@ -1,4 +1,4 @@
-import { RouterDataView } from './RouterDataView';
+import { RouterSyncView } from './RouterSyncView';
 import { Badge } from '@/components/ui/Badge';
 import type { DhcpLease } from '../types/routeros';
 import type { Column } from '@/components/data/dataTable.types';
@@ -16,9 +16,9 @@ const columns: Column<DhcpLease>[] = [
 
 export function DhcpTab({ routerId }: { routerId: string }) {
   return (
-    <RouterDataView<DhcpLease>
+    <RouterSyncView<DhcpLease>
       routerId={routerId}
-      command="dhcp.leases"
+      kind="dhcp.leases"
       columns={columns}
       rowKey={(r) => r['.id']}
       emptyTitle="Hakuna DHCP leases"

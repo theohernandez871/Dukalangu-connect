@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { NoSymbolIcon } from '@heroicons/react/24/outline';
-import { RouterDataView } from './RouterDataView';
+import { RouterSyncView } from './RouterSyncView';
 import { Button } from '@/components/ui/Button';
 import { DeleteConfirmDialog } from '@/components/feedback/DeleteConfirmDialog';
 import { useRouterAction } from '../hooks/useRouterAction';
@@ -23,9 +23,9 @@ export function HotspotActiveTab({ routerId }: { routerId: string }) {
 
   return (
     <>
-      <RouterDataView<HotspotActive>
+      <RouterSyncView<HotspotActive>
         routerId={routerId}
-        command="hotspot.active"
+        kind="hotspot.active"
         columns={columns}
         rowKey={(r) => r['.id']}
         emptyTitle="Hakuna watumiaji hai"

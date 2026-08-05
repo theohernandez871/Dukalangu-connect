@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabase';
 import { routerRepository } from './router.repository';
 import type { Router, RouterInput, RouterStatus, RouterConnectionType } from '../types/router';
 
@@ -14,6 +15,14 @@ interface RouterRow {
   os_version: string | null;
   model: string | null;
   last_seen: string | null;
+  cpu_load: number | null;
+  mem_used: number | null;
+  mem_total: number | null;
+  uptime: string | null;
+  board_name: string | null;
+  connected_users: number | null;
+  ping_ms: number | null;
+  response_ms: number | null;
   is_active: boolean;
   created_at: string;
   branch: { name: string } | { name: string }[] | null;
@@ -35,6 +44,14 @@ function mapRouter(row: RouterRow): Router {
     osVersion: row.os_version,
     model: row.model,
     lastSeen: row.last_seen,
+    cpuLoad: row.cpu_load,
+    memUsed: row.mem_used ? Number(row.mem_used) : null,
+    memTotal: row.mem_total ? Number(row.mem_total) : null,
+    uptime: row.uptime,
+    boardName: row.board_name,
+    connectedUsers: row.connected_users,
+    pingMs: row.ping_ms,
+    responseMs: row.response_ms,
     isActive: row.is_active,
     createdAt: row.created_at,
   };
@@ -73,5 +90,10 @@ export const routerService = {
   async remove(id: string): Promise<void> {
     const { error } = await routerRepository.remove(id);
     if (error) throw error;
+  },
+
+  /** Mark routers offline whose heartbeat has gone stale (fallback for no-cron). */
+  async sweepOffline(): Promise<void> {
+    await supabase.rpc('mark_stale_routers_offline', { p_threshold_seconds: 90 });
   },
 };

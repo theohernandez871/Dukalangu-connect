@@ -1,4 +1,4 @@
-import { RouterDataView } from './RouterDataView';
+import { RouterSyncView } from './RouterSyncView';
 import type { Column } from '@/components/data/dataTable.types';
 
 // Hotspot + PPP profiles share a simple {name} shape for display.
@@ -10,9 +10,9 @@ const columns: Column<ProfileRow>[] = [
 
 export function ProfilesTab({ routerId }: { routerId: string }) {
   return (
-    <RouterDataView<ProfileRow>
+    <RouterSyncView<ProfileRow>
       routerId={routerId}
-      command="hotspot.profiles"
+      kind="hotspot.profiles"
       columns={columns}
       rowKey={(r) => r['.id']}
       emptyTitle="Hakuna profiles"

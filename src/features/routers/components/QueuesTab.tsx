@@ -1,4 +1,4 @@
-import { RouterDataView } from './RouterDataView';
+import { RouterSyncView } from './RouterSyncView';
 import { Badge } from '@/components/ui/Badge';
 import type { SimpleQueue } from '../types/routeros';
 import type { Column } from '@/components/data/dataTable.types';
@@ -16,9 +16,9 @@ const columns: Column<SimpleQueue>[] = [
 
 export function QueuesTab({ routerId }: { routerId: string }) {
   return (
-    <RouterDataView<SimpleQueue>
+    <RouterSyncView<SimpleQueue>
       routerId={routerId}
-      command="queue.simple"
+      kind="queue.simple"
       columns={columns}
       rowKey={(r) => r['.id']}
       emptyTitle="Hakuna queues"
