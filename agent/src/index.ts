@@ -1,6 +1,15 @@
-// Entry point: load config, configure logging, run the orchestrator.
-// On a restart request or fatal error, exit with code 1 so the Windows
-// Service / PM2 / Docker restart policy brings the agent back up.
+// Entry point. IMPORTANT: dotenv must load .env before any other module reads
+// process.env. We resolve .env relative to this file's location so the agent
+// works regardless of the current working directory.
+import { config as loadEnv } from 'dotenv';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+// dist/index.js -> project root is one level up from dist/.
+loadEnv({ path: resolve(__dirname, '..', '.env') });
+// Also try the current working directory as a fallback.
+loadEnv();
 
 import { loadConfig } from './security/config.js';
 import { Orchestrator } from './agent-core/Orchestrator.js';
@@ -28,7 +37,7 @@ async function main(): Promise<void> {
     stopUpdater = startUpdater({
       currentVersion: VERSION,
       manifestUrl,
-      intervalMs: Number(process.env.UPDATE_INTERVAL ?? 3600000), // hourly
+      intervalMs: Number(process.env.UPDATE_INTERVAL ?? 3600000),
       onUpdateReady: () => {
         log.info('Update tayari — nazima ili service manager iweke toleo jipya');
         void orchestrator.stop().then(() => process.exit(1));
