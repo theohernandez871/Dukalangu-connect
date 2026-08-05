@@ -77,11 +77,17 @@ export function RouterFormDialog({ open, onClose, router }: RouterFormDialogProp
         <Select label="Tawi" placeholder="Chagua tawi" options={branchOptions} error={errors.branchId?.message} {...register('branchId')} />
 
         <div className="grid gap-4 sm:grid-cols-2">
+          <Input label="IP ya router (LAN)" placeholder="192.168.88.1" error={errors.host?.message} {...register('host')} />
+          <Input label="API Port" type="number" placeholder="8728" error={errors.apiPort?.message} {...register('apiPort', { valueAsNumber: true })} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
           <Input label="Jina la mtumiaji (RouterOS)" placeholder="admin" error={errors.username?.message} {...register('username')} />
           <PasswordInput label={isEdit ? 'Nywila mpya (hiari)' : 'Nywila ya RouterOS'} placeholder="••••••••" error={errors.password?.message} {...register('password')} />
         </div>
         <p className="text-xs text-slate-400">
-          Router huunganishwa kupitia Agent (salama, inafanya kazi hata nyuma ya CGNAT). Nywila huhifadhiwa encrypted.
+          IP ni anwani ya router kwenye mtandao wa ndani (LAN) ambapo agent inaendeshwa — mfano 192.168.88.1.
+          Agent huunganisha na RouterOS API (port 8728). Nywila huhifadhiwa encrypted.
         </p>
       </form>
     </Dialog>
