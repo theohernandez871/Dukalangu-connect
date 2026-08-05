@@ -25,9 +25,14 @@ export interface SyncSnapshot {
 }
 
 export async function collectMetrics(conn: RouterConnection): Promise<RouterMetrics> {
-  const [res] = await conn.run(READ_COMMANDS['resource']);
-  const [ident] = await conn.run(READ_COMMANDS['identity']).catch(() => [{}]);
-  const active = await conn.run(READ_COMMANDS['hotspot.active']).catch(() => []);
+  // The resource read is the connectivity probe: if it fails, the router is
+  // genuinely unreachable, so this one throws (heartbeat marks offline).
+  const [res] = await conn.runStrict(READ_COMMANDS['resource']);
+  // Identity and active-users are best-effort; a failure here must not flip a
+  // reachable router to offline, so they use the swallowing run().
+  const identRows = await conn.run(READ_COMMANDS['identity']);
+  const ident = identRows[0] ?? {};
+  const active = await conn.run(READ_COMMANDS['hotspot.active']);
 
   const total = res?.['total-memory'] ? Number(res['total-memory']) : null;
   const free = res?.['free-memory'] ? Number(res['free-memory']) : null;
@@ -44,17 +49,17 @@ export async function collectMetrics(conn: RouterConnection): Promise<RouterMetr
   };
 }
 
-/** Pull every sync kind. Failures on one kind don't abort the rest. */
+/** Pull every sync kind. run() already swallows per-command failures. */
 export async function collectAll(conn: RouterConnection): Promise<SyncSnapshot> {
   const metrics = await collectMetrics(conn);
   const data: Record<string, unknown[]> = {};
 
   for (const kind of SYNC_KINDS) {
-    try {
-      data[kind] = await conn.run(READ_COMMANDS[kind]);
-    } catch (e) {
-      log.warn(`Sync ya "${kind}" imeshindwa`, String(e));
-      data[kind] = [];
+    // run() returns [] on failure and logs the command, so one broken kind
+    // (e.g. an UNKNOWNREPLY on a specific print) won't abort the rest.
+    data[kind] = await conn.run(READ_COMMANDS[kind]);
+    if (data[kind].length === 0) {
+      log.debug(`Sync ya "${kind}" haina data (au imeshindwa kimya)`);
     }
   }
 

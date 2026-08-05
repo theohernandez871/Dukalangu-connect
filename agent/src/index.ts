@@ -54,6 +54,16 @@ async function main(): Promise<void> {
   process.on('SIGINT', () => void shutdown('SIGINT'));
   process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
+  // Keep the agent alive when node-routeros (or any async source) emits an
+  // error outside our try/catch — e.g. UNKNOWNREPLY from the socket listener.
+  // We log it and keep polling instead of letting Node kill the process.
+  process.on('unhandledRejection', (reason) => {
+    log.error('unhandledRejection (imepuuzwa, agent inaendelea)', String(reason));
+  });
+  process.on('uncaughtException', (err) => {
+    log.error('uncaughtException (imepuuzwa, agent inaendelea)', String(err));
+  });
+
   await orchestrator.start();
 
   if (orchestrator.wantsRestart()) {

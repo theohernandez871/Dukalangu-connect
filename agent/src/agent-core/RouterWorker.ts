@@ -12,6 +12,7 @@ export class RouterWorker {
   private conn: RouterConnection;
   private log;
   private lastSync = 0;
+  private failStreak = 0;
 
   constructor(
     private readonly router: PollRouter,
@@ -35,17 +36,24 @@ export class RouterWorker {
   async heartbeat(): Promise<void> {
     const start = Date.now();
     try {
+      // If prior beats failed, drop the (possibly poisoned) socket and reopen a
+      // fresh one — this clears stale UNKNOWNREPLY state on RouterOS 7.20+.
+      if (this.failStreak > 0) {
+        await this.conn.close();
+      }
       await this.conn.connect();
       const pingStart = Date.now();
       const metrics = await collectMetrics(this.conn);
       const pingMs = Date.now() - pingStart;
       const responseMs = Date.now() - start;
       await this.server.heartbeat(this.router.id, metrics, pingMs, responseMs);
+      this.failStreak = 0;
       this.log.debug(`Heartbeat OK: version=${metrics.version}, cpu=${metrics.cpuLoad}, users=${metrics.connectedUsers}`);
     } catch (e) {
-      this.log.warn('Heartbeat imeshindwa — router offline', String(e));
+      this.failStreak += 1;
+      this.log.warn(`Heartbeat imeshindwa (mfululizo ${this.failStreak}) — router offline`, String(e));
       // A failed heartbeat leaves the row un-updated; the server marks it
-      // offline after a missed-beat timeout.
+      // offline after a missed-beat timeout. The agent keeps running.
     }
   }
 

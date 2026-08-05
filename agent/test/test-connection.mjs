@@ -18,10 +18,10 @@ async function main() {
     await conn.connect();
     console.log('CONNECT OK');
 
-    const res = await conn.run('/system/resource/print');
+    const res = await conn.runStrict('/system/resource/print');
     console.log('RESOURCE:', JSON.stringify(res[0] ?? {}, null, 2));
 
-    const ident = await conn.run('/system/identity/print');
+    const ident = await conn.runStrict('/system/identity/print');
     console.log('IDENTITY:', JSON.stringify(ident[0] ?? {}, null, 2));
 
     const version = res[0]?.version;
