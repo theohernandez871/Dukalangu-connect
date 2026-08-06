@@ -9,6 +9,7 @@ import { generateSchema, type GenerateFormInput } from '../schemas/voucher.schem
 import { useVoucherMutations } from '../hooks/useVouchers';
 import { usePackages } from '@/features/packages/hooks/usePackages';
 import { useBranches } from '@/features/companies/hooks/useCompany';
+import { useRouters } from '@/features/routers/hooks/useRouters';
 
 interface GenerateVoucherDialogProps {
   open: boolean;
@@ -20,6 +21,7 @@ export function GenerateVoucherDialog({ open, onClose, onGenerated }: GenerateVo
   const { generate } = useVoucherMutations();
   const { data: packages } = usePackages();
   const { data: branches } = useBranches();
+  const { data: routers } = useRouters();
 
   const {
     register,
@@ -33,6 +35,7 @@ export function GenerateVoucherDialog({ open, onClose, onGenerated }: GenerateVo
 
   const pkgOptions = (packages ?? []).filter((p) => p.isActive).map((p) => ({ value: p.id, label: p.name }));
   const branchOptions = (branches ?? []).map((b) => ({ value: b.id, label: b.name }));
+  const routerOptions = (routers ?? []).map((r) => ({ value: r.id, label: r.name }));
 
   const submit = handleSubmit((values) => {
     generate.mutate(values, {
@@ -70,6 +73,19 @@ export function GenerateVoucherDialog({ open, onClose, onGenerated }: GenerateVo
           <Input label="Uhalali (siku, hiari)" type="number" placeholder="30" error={errors.validDays?.message} {...register('validDays', { valueAsNumber: true })} />
         </div>
         <Select label="Tawi (hiari)" placeholder="Kampuni nzima" options={branchOptions} error={errors.branchId?.message} {...register('branchId')} />
+
+        <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4 dark:border-slate-800 dark:bg-slate-800/30">
+          <p className="mb-3 text-sm font-medium text-slate-600 dark:text-slate-300">Peleka MikroTik (hiari)</p>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Select label="Router" placeholder="Usipeleke" options={routerOptions} error={errors.routerId?.message} {...register('routerId')} />
+            <Input label="Profile ya RouterOS" placeholder="default" error={errors.routerProfile?.message} {...register('routerProfile')} />
+          </div>
+          <p className="mt-2 text-xs text-slate-400">
+            Ukichagua router, vocha zitaundwa kama hotspot users kwenye MikroTik moja kwa moja.
+            Profile lazima iwepo kwenye router (mfano "default" au jina la package yako).
+          </p>
+        </div>
+
         <Input label="Maelezo (hiari)" placeholder="Vocha za Desemba" error={errors.notes?.message} {...register('notes')} />
       </form>
     </Dialog>

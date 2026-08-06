@@ -38,6 +38,11 @@ export const voucherRepository = {
     return supabase.from('vouchers').update({ status }).eq('id', id);
   },
 
+  /** Codes only, for pushing a batch to the router as hotspot users. */
+  listVouchersByBatch(batchId: string) {
+    return supabase.from('vouchers').select('code').eq('batch_id', batchId).limit(5000);
+  },
+
   removeBatch(id: string) {
     return supabase.from('voucher_batches').delete().eq('id', id);
   },

@@ -59,31 +59,31 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
 
   switch (cmd.command) {
     case 'hotspot.kick':
-      return conn.run('/ip/hotspot/active/remove', [`=.id=${a.id}`]);
+      return conn.runStrict('/ip/hotspot/active/remove', [`=.id=${a.id}`]);
 
     case 'pppoe.disconnect':
-      return conn.run('/ppp/active/remove', [`=.id=${a.id}`]);
+      return conn.runStrict('/ppp/active/remove', [`=.id=${a.id}`]);
 
     case 'hotspot.create_user':
-      return conn.run('/ip/hotspot/user/add', [
+      return conn.runStrict('/ip/hotspot/user/add', [
         `=name=${a.name}`,
         `=password=${a.password ?? a.name}`,
         `=profile=${a.profile ?? 'default'}`,
       ]);
 
     case 'hotspot.delete_user':
-      return conn.run('/ip/hotspot/user/remove', [`=.id=${a.id}`]);
+      return conn.runStrict('/ip/hotspot/user/remove', [`=.id=${a.id}`]);
 
     case 'hotspot.enable_user':
-      return conn.run('/ip/hotspot/user/enable', [`=.id=${a.id}`]);
+      return conn.runStrict('/ip/hotspot/user/enable', [`=.id=${a.id}`]);
 
     case 'hotspot.disable_user':
-      return conn.run('/ip/hotspot/user/disable', [`=.id=${a.id}`]);
+      return conn.runStrict('/ip/hotspot/user/disable', [`=.id=${a.id}`]);
 
     // A voucher is a hotspot user with a limited-uptime/quota profile. Create
     // the user; the profile is expected to exist (created via create_profile).
     case 'hotspot.create_voucher':
-      return conn.run('/ip/hotspot/user/add', [
+      return conn.runStrict('/ip/hotspot/user/add', [
         `=name=${a.code}`,
         `=password=${a.code}`,
         `=profile=${a.profile ?? 'default'}`,
@@ -92,10 +92,10 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
       ]);
 
     case 'hotspot.create_profile':
-      return conn.run('/ip/hotspot/user/profile/add', profileParams(a));
+      return conn.runStrict('/ip/hotspot/user/profile/add', profileParams(a));
 
     case 'hotspot.update_profile':
-      return conn.run('/ip/hotspot/user/profile/set', [`=.id=${a.id}`, ...profileParams(a)]);
+      return conn.runStrict('/ip/hotspot/user/profile/set', [`=.id=${a.id}`, ...profileParams(a)]);
 
     default:
       throw new Error(`Command haijulikani: ${cmd.command}`);
@@ -112,12 +112,24 @@ function profileParams(a: Record<string, string>): string[] {
 
 export async function handleCommand(conn: RouterConnection, cmd: Command): Promise<CommandResult> {
   const start = Date.now();
+  const mutating = isMutating(cmd.command);
+  if (mutating) {
+    // Log the full request for write commands so we can trace what was sent.
+    log.info(`REQUEST -> ${cmd.command}`, { id: cmd.id, args: cmd.args ?? {} });
+  }
   try {
     const data = await execute(conn, cmd);
-    log.info(`Amri OK: ${cmd.command} (${Date.now() - start}ms)`, { id: cmd.id });
+    const ms = Date.now() - start;
+    if (mutating) {
+      // RouterOS /add returns the new .id (=ret=...); log it as proof of write.
+      const created = Array.isArray(data) && data[0] ? JSON.stringify(data[0]) : 'ok';
+      log.info(`RESPONSE OK <- ${cmd.command} (${ms}ms): ${created}`, { id: cmd.id });
+    } else {
+      log.info(`Amri OK: ${cmd.command} (${ms}ms)`, { id: cmd.id });
+    }
     return { id: cmd.id, ok: true, data };
   } catch (e) {
-    log.error(`Amri imeshindwa: ${cmd.command} (${Date.now() - start}ms)`, String(e));
+    log.error(`RESPONSE FAIL <- ${cmd.command} (${Date.now() - start}ms): ${String(e)}`, { id: cmd.id, args: cmd.args ?? {} });
     return { id: cmd.id, ok: false, error: String(e) };
   }
 }

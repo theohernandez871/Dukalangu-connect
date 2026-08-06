@@ -60,6 +60,9 @@ export function startMockRouter(port = 8728) {
 
       if (cmd === '/login') {
         send(withTag(['!done']));
+      } else if (cmd === '/ip/hotspot/user/add') {
+        // RouterOS returns the new internal id on a successful add.
+        send(withTag(['!done', '=ret=*1A']));
       } else if (REPLIES[cmd] !== undefined) {
         const data = REPLIES[cmd];
         if (data) {

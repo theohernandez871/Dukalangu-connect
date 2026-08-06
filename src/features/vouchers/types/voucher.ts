@@ -32,4 +32,8 @@ export interface GenerateVouchersInput {
   notes?: string | null;
   branchId?: string | null;
   validDays?: number | null;
+  // Router to push the vouchers to as hotspot users, and the RouterOS profile
+  // name to assign. When routerId is set, the service enqueues create commands.
+  routerId?: string | null;
+  routerProfile?: string | null;
 }
