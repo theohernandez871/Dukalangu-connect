@@ -42,10 +42,10 @@ function makeDecoder(onSentence) {
 const REPLIES = {
   '/system/resource/print': {
     '=cpu-load': '7', '=free-memory': '104857600', '=total-memory': '268435456',
-    '=uptime': '1w2d3h', '=version': '7.14.2 (stable)', '=board-name': 'hAP ac2',
+    '=uptime': '1w2d3h', '=version': '7.20.7 (stable)', '=board-name': 'hAP ac2',
   },
   '/system/identity/print': { '=name': 'MikroTik-Mock' },
-  '/ip/hotspot/active/print': null, // empty list
+  '/ip/hotspot/active/print': null, // empty list -> replies !empty on 7.20+
 };
 
 export function startMockRouter(port = 8728) {
@@ -62,8 +62,13 @@ export function startMockRouter(port = 8728) {
         send(withTag(['!done']));
       } else if (REPLIES[cmd] !== undefined) {
         const data = REPLIES[cmd];
-        if (data) send(withTag(['!re', ...Object.entries(data).map(([k, v]) => `${k}=${v}`)]));
-        send(withTag(['!done']));
+        if (data) {
+          send(withTag(['!re', ...Object.entries(data).map(([k, v]) => `${k}=${v}`)]));
+          send(withTag(['!done']));
+        } else {
+          // RouterOS 7.20+ answers an empty print with !empty (not !done).
+          send(withTag(['!empty']));
+        }
       } else {
         send(withTag(['!done']));
       }

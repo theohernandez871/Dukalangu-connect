@@ -1,5 +1,7 @@
-// Executes mutating commands dispatched from the server. Each returns a
-// small result object that the agent reports back for acknowledgement.
+// Executes commands dispatched from the server. Read commands return a
+// printout; mutating commands perform an action; sync.all triggers a full
+// resource collection (handled by the caller via forceSync). Every result is
+// reported back for acknowledgement. A failed command never throws to the loop.
 
 import { RouterConnection } from '../router-api/connection.js';
 import { READ_COMMANDS, isReadCommand } from '../router-api/commands.js';
@@ -20,10 +22,19 @@ export interface CommandResult {
   error?: string;
 }
 
+// Commands the worker handles specially (not via this module's execute()).
+export const CONTROL_COMMANDS = new Set(['sync.all', 'agent.restart']);
+
 async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
   const a = cmd.args ?? {};
 
-  // Read commands: just return the printout.
+  // sync.all is a control command: the RouterWorker runs forceSync() for it.
+  // We accept it here (no-op) so it is never reported as "unknown".
+  if (cmd.command === 'sync.all') {
+    return { triggered: true };
+  }
+
+  // Read commands: return the printout (run() is crash-safe, returns [] on fail).
   if (isReadCommand(cmd.command)) {
     return conn.run(READ_COMMANDS[cmd.command]);
   }
@@ -35,7 +46,6 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
     case 'pppoe.disconnect':
       return conn.run('/ppp/active/remove', [`=.id=${a.id}`]);
 
-    // Create a hotspot user (voucher) bound to a profile.
     case 'hotspot.create_user':
       return conn.run('/ip/hotspot/user/add', [
         `=name=${a.name}`,
@@ -46,7 +56,6 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
     case 'hotspot.delete_user':
       return conn.run('/ip/hotspot/user/remove', [`=.id=${a.id}`]);
 
-    // Create a hotspot user profile (package) with rate limit + session time.
     case 'hotspot.create_profile':
       return conn.run('/ip/hotspot/user/profile/add', profileParams(a));
 
@@ -67,12 +76,13 @@ function profileParams(a: Record<string, string>): string[] {
 }
 
 export async function handleCommand(conn: RouterConnection, cmd: Command): Promise<CommandResult> {
+  const start = Date.now();
   try {
     const data = await execute(conn, cmd);
-    log.info(`Amri OK: ${cmd.command}`, { id: cmd.id });
+    log.info(`Amri OK: ${cmd.command} (${Date.now() - start}ms)`, { id: cmd.id });
     return { id: cmd.id, ok: true, data };
   } catch (e) {
-    log.error(`Amri imeshindwa: ${cmd.command}`, String(e));
+    log.error(`Amri imeshindwa: ${cmd.command} (${Date.now() - start}ms)`, String(e));
     return { id: cmd.id, ok: false, error: String(e) };
   }
 }

@@ -9,6 +9,11 @@
 
 import { RouterOSAPI } from 'node-routeros';
 import { createLogger } from '../logging/logger.js';
+import { applyRouterOsCompatPatch } from './ros-compat.js';
+
+// Ensure the RouterOS 7.20+ compatibility patch is applied before any
+// connection is created, regardless of which entry point loaded us.
+applyRouterOsCompatPatch();
 
 const log = createLogger('router-api');
 
@@ -74,16 +79,33 @@ export class RouterConnection {
   }
 
   /**
+   * Detect the RouterOS 7.20+ `!empty` reply that node-routeros v1.6.9 does
+   * not understand and raises as UNKNOWNREPLY. It simply means "no rows", so we
+   * treat it as an empty result rather than an error.
+   */
+  private isEmptyReply(e: unknown): boolean {
+    const s = String(e);
+    return s.includes('UNKNOWNREPLY') && (s.includes('!empty') || s.includes('empty'));
+  }
+
+  /**
    * Run a single command. Never throws to the caller — returns [] on failure so
    * one bad command cannot abort the polling/sync loop. Logs the command and
    * any RouterOS response detail before recovering. Reconnects once on error.
    */
   async run(path: string, params: string[] = []): Promise<Record<string, string>[]> {
+    const start = Date.now();
     try {
       if (!this.api || !this.connected) await this.connect();
       const res = await this.api!.write(path, params);
+      log.debug(`Amri "${path}" OK (${Date.now() - start}ms, rows=${Array.isArray(res) ? res.length : 0})`);
       return res as Record<string, string>[];
     } catch (e) {
+      // RouterOS 7.20+ empty print: not an error, just no rows.
+      if (this.isEmptyReply(e)) {
+        log.debug(`Amri "${path}" imerudisha tupu (!empty) — ni sawa`);
+        return [];
+      }
       log.warn(`Amri imeshindwa (${this.label}): "${path}" ${params.length ? JSON.stringify(params) : ''} -> ${String(e)}`);
       this.connected = false;
       // One guarded retry after a fresh reconnect.
@@ -93,20 +115,25 @@ export class RouterConnection {
         log.info(`Amri "${path}" imefanikiwa baada ya kuunganisha upya (${this.label})`);
         return res as Record<string, string>[];
       } catch (e2) {
+        if (this.isEmptyReply(e2)) return [];
         log.error(`Amri "${path}" imeshindwa tena baada ya reconnect (${this.label}): ${String(e2)}`);
-        // Swallow: caller (sync/heartbeat) treats [] as "not available" and
-        // keeps the agent running. Router stays online via other successful reads.
+        // Swallow: caller treats [] as "not available" and keeps running.
         return [];
       }
     }
   }
 
-  /** Like run() but signals failure via throw — used only where the caller
-   *  explicitly needs to know (e.g. the initial heartbeat connectivity probe). */
+  /** Like run() but throws on real failure — used for the connectivity probe.
+   *  Still treats `!empty` as an empty result (it is not a failure). */
   async runStrict(path: string, params: string[] = []): Promise<Record<string, string>[]> {
-    if (!this.api || !this.connected) await this.connect();
-    const res = await this.api!.write(path, params);
-    return res as Record<string, string>[];
+    try {
+      if (!this.api || !this.connected) await this.connect();
+      const res = await this.api!.write(path, params);
+      return res as Record<string, string>[];
+    } catch (e) {
+      if (this.isEmptyReply(e)) return [];
+      throw e;
+    }
   }
 
   getLastError(): string | null {

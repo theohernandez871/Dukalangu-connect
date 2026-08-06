@@ -15,6 +15,10 @@ import { loadConfig } from './security/config.js';
 import { Orchestrator } from './agent-core/Orchestrator.js';
 import { startUpdater } from './updater/updater.js';
 import { createLogger, setLogLevel } from './logging/logger.js';
+import { applyRouterOsCompatPatch } from './router-api/ros-compat.js';
+
+// Patch node-routeros for RouterOS 7.20+ (!empty reply) before any connection.
+applyRouterOsCompatPatch();
 
 const log = createLogger('main');
 const VERSION = '1.0.0';

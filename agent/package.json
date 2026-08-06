@@ -13,6 +13,8 @@
     "test:connection": "npm run build && node test/test-connection.mjs",
     "test:metrics": "npm run build && node test/test-metrics.mjs",
     "test:resilience": "npm run build && node test/test-resilience.mjs",
+    "test:empty": "npm run build && node test/test-empty-reply.mjs",
+    "test:all": "npm run build && node test/test-connection.mjs && node test/test-metrics.mjs && node test/test-resilience.mjs && node test/test-empty-reply.mjs",
     "service:install": "node dist/installer/service.js install",
     "service:uninstall": "node dist/installer/service.js uninstall",
     "build:exe": "npm run build && pkg . --targets node18-win-x64 --output build/hotspot-agent.exe"
