@@ -3,7 +3,7 @@
 
 import { RouterConnection } from '../router-api/connection.js';
 import { collectMetrics, collectAll } from '../sync-engine/collect.js';
-import { handleCommand, type Command, type CommandResult } from '../command-handler/handler.js';
+import { handleCommand, isMutating, type Command, type CommandResult } from '../command-handler/handler.js';
 import { createLogger } from '../logging/logger.js';
 import type { ServerClient, PollRouter } from '../ws-client/client.js';
 import type { AgentConfig } from '../security/config.js';
@@ -63,7 +63,7 @@ export class RouterWorker {
     if (now - this.lastSync < 60000) return; // full sync at most once/min
     this.lastSync = now;
     try {
-      const snap = await collectAll(this.conn);
+      const snap = await collectAll(this.conn, this.router.id.slice(0, 8));
       for (const [kind, payload] of Object.entries(snap.data)) {
         await this.server.pushSync(this.router.id, kind, payload);
       }
@@ -79,10 +79,18 @@ export class RouterWorker {
 
   async runCommands(commands: Command[]): Promise<CommandResult[]> {
     const results: CommandResult[] = [];
+    let needsSync = false;
     for (const cmd of commands) {
-      results.push(await handleCommand(this.conn, cmd));
-      if (cmd.command === 'sync.all') await this.forceSync();
+      const result = await handleCommand(this.conn, cmd);
+      results.push(result);
+      // A successful state change or an explicit sync request should refresh
+      // the dashboard cache immediately (not wait for the periodic sync).
+      if (cmd.command === 'sync.all') needsSync = true;
+      if (result.ok && cmd.command.startsWith('hotspot.') && isMutating(cmd.command)) {
+        needsSync = true;
+      }
     }
+    if (needsSync) await this.forceSync();
     return results;
   }
 

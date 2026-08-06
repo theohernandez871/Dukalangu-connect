@@ -25,6 +25,24 @@ export interface CommandResult {
 // Commands the worker handles specially (not via this module's execute()).
 export const CONTROL_COMMANDS = new Set(['sync.all', 'agent.restart']);
 
+// Mutating commands change router state — the worker forces a sync after these
+// so the dashboard reflects the change immediately.
+const MUTATING_COMMANDS = new Set([
+  'hotspot.kick',
+  'pppoe.disconnect',
+  'hotspot.create_user',
+  'hotspot.delete_user',
+  'hotspot.enable_user',
+  'hotspot.disable_user',
+  'hotspot.create_voucher',
+  'hotspot.create_profile',
+  'hotspot.update_profile',
+]);
+
+export function isMutating(command: string): boolean {
+  return MUTATING_COMMANDS.has(command);
+}
+
 async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
   const a = cmd.args ?? {};
 
@@ -55,6 +73,23 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
 
     case 'hotspot.delete_user':
       return conn.run('/ip/hotspot/user/remove', [`=.id=${a.id}`]);
+
+    case 'hotspot.enable_user':
+      return conn.run('/ip/hotspot/user/enable', [`=.id=${a.id}`]);
+
+    case 'hotspot.disable_user':
+      return conn.run('/ip/hotspot/user/disable', [`=.id=${a.id}`]);
+
+    // A voucher is a hotspot user with a limited-uptime/quota profile. Create
+    // the user; the profile is expected to exist (created via create_profile).
+    case 'hotspot.create_voucher':
+      return conn.run('/ip/hotspot/user/add', [
+        `=name=${a.code}`,
+        `=password=${a.code}`,
+        `=profile=${a.profile ?? 'default'}`,
+        ...(a.limitUptime ? [`=limit-uptime=${a.limitUptime}`] : []),
+        ...(a.comment ? [`=comment=${a.comment}`] : []),
+      ]);
 
     case 'hotspot.create_profile':
       return conn.run('/ip/hotspot/user/profile/add', profileParams(a));

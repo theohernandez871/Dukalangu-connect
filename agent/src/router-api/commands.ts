@@ -30,6 +30,7 @@ export const READ_COMMANDS: Record<string, string> = {
   'hotspot.users': '/ip/hotspot/user/print',
   'hotspot.profiles': '/ip/hotspot/user/profile/print',
   'hotspot.hosts': '/ip/hotspot/host/print',
+  'hotspot.bindings': '/ip/hotspot/ip-binding/print',
 
   // PPP / PPPoE
   'pppoe.secrets': '/ppp/secret/print',
@@ -70,6 +71,7 @@ export const SYNC_KINDS: string[] = [
   'hotspot.users',
   'hotspot.profiles',
   'hotspot.hosts',
+  'hotspot.bindings',
   'pppoe.secrets',
   'pppoe.active',
   'ppp.profiles',
@@ -78,6 +80,21 @@ export const SYNC_KINDS: string[] = [
   'firewall.nat',
   'capsman.registrations',
 ];
+
+/**
+ * Resources that don't exist on every RouterOS device/version. We probe for
+ * them once; if a probe returns nothing usable or errors, the kind is skipped
+ * on future syncs. `run()` already returns [] safely, so this is an
+ * optimization + clean logging, not a safety requirement.
+ *   - health: absent on CHR and some x86 builds (no hardware sensors)
+ *   - wireless: absent when using wifiwave2/wifi package instead of legacy
+ *   - capsman: only when the CAPsMAN package is enabled
+ */
+export const OPTIONAL_KINDS = new Set<string>([
+  'health',
+  'wireless',
+  'capsman.registrations',
+]);
 
 export function isReadCommand(cmd: string): boolean {
   return cmd in READ_COMMANDS;

@@ -15,8 +15,13 @@ export type RouterCommandKey =
   | 'hotspot.kick'
   | 'hotspot.create_user'
   | 'hotspot.delete_user'
+  | 'hotspot.enable_user'
+  | 'hotspot.disable_user'
+  | 'hotspot.create_voucher'
   | 'hotspot.create_profile'
   | 'hotspot.update_profile'
+  | 'hotspot.servers'
+  | 'hotspot.bindings'
   | 'pppoe.secrets'
   | 'pppoe.active'
   | 'pppoe.disconnect'
@@ -43,8 +48,13 @@ export const COMMAND_CATALOG: Record<RouterCommandKey, CommandMeta> = {
   'hotspot.kick': { key: 'hotspot.kick', label: 'Ondoa mtumiaji', mutating: true },
   'hotspot.create_user': { key: 'hotspot.create_user', label: 'Tengeneza voucher/user', mutating: true },
   'hotspot.delete_user': { key: 'hotspot.delete_user', label: 'Futa voucher/user', mutating: true },
+  'hotspot.enable_user': { key: 'hotspot.enable_user', label: 'Wezesha user', mutating: true },
+  'hotspot.disable_user': { key: 'hotspot.disable_user', label: 'Zima user', mutating: true },
+  'hotspot.create_voucher': { key: 'hotspot.create_voucher', label: 'Tengeneza voucher', mutating: true },
   'hotspot.create_profile': { key: 'hotspot.create_profile', label: 'Tengeneza package/profile', mutating: true },
   'hotspot.update_profile': { key: 'hotspot.update_profile', label: 'Sasisha package/profile', mutating: true },
+  'hotspot.servers': { key: 'hotspot.servers', label: 'Hotspot Servers', mutating: false },
+  'hotspot.bindings': { key: 'hotspot.bindings', label: 'IP Bindings', mutating: false },
   'pppoe.secrets': { key: 'pppoe.secrets', label: 'Akaunti za PPPoE', mutating: false },
   'pppoe.active': { key: 'pppoe.active', label: 'Muunganisho hai (PPPoE)', mutating: false },
   'pppoe.disconnect': { key: 'pppoe.disconnect', label: 'Kata muunganisho', mutating: true },

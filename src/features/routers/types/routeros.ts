@@ -67,3 +67,29 @@ export interface FirewallRule {
   comment?: string;
   disabled?: string;
 }
+
+export interface HotspotServer {
+  '.id': string;
+  name?: string;
+  interface?: string;
+  profile?: string;
+  disabled?: string;
+}
+
+export interface HotspotProfile {
+  '.id': string;
+  name?: string;
+  'rate-limit'?: string;
+  'session-timeout'?: string;
+  'shared-users'?: string;
+}
+
+export interface IpBinding {
+  '.id': string;
+  'mac-address'?: string;
+  address?: string;
+  'to-address'?: string;
+  type?: string;
+  comment?: string;
+  disabled?: string;
+}
