@@ -94,6 +94,13 @@ export class RouterConnection {
     return s.includes('UNKNOWNREPLY') && (s.includes('!empty') || s.includes('empty'));
   }
 
+  /** A stale-tag or socket error means the current socket is unusable; the
+   *  retry must use a completely fresh connection (new tag map). */
+  private isSocketStateError(e: unknown): boolean {
+    const s = String(e);
+    return s.includes('UNREGISTEREDTAG') || s.includes('unregistered') || s.includes('Socket');
+  }
+
   /**
    * Serialize an operation on the socket: chain it after any in-flight op so
    * only one request uses the connection at a time. Errors are isolated so one
@@ -133,6 +140,12 @@ export class RouterConnection {
       }
       log.warn(`Amri imeshindwa (${this.label}): "${path}" ${params.length ? JSON.stringify(params) : ''} -> ${String(e)}`);
       this.connected = false;
+      // A stale-tag/socket error poisons the socket: close it fully so the
+      // retry opens a fresh connection with a clean tag map.
+      if (this.isSocketStateError(e)) {
+        log.info(`Socket state error (${this.label}) — nafunga socket kwa ajili ya muunganisho mpya`);
+        await this.close();
+      }
       // One guarded retry after a fresh reconnect.
       try {
         await this.connect();

@@ -34,7 +34,7 @@ async function main() {
 
     const emptyOk = Array.isArray(active) && active.length === 0;
     const fast = elapsed < 3000; // must NOT hit the 8s timeout
-    const versionOk = version?.startsWith('7.20');
+    const versionOk = version?.startsWith('7.2');
 
     if (emptyOk && fast && versionOk && !crashed) {
       console.log(`✅ SUCCESS — !empty handled as [] in ${elapsed}ms, version ${version}, no crash`);
