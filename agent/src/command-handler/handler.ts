@@ -81,15 +81,28 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
       return conn.runStrict('/ip/hotspot/user/disable', [`=.id=${a.id}`]);
 
     // A voucher is a hotspot user with a limited-uptime/quota profile. Create
-    // the user; the profile is expected to exist (created via create_profile).
-    case 'hotspot.create_voucher':
-      return conn.runStrict('/ip/hotspot/user/add', [
+    // the user, then read it back to PROVE it exists on the router (or surface
+    // the real reason it doesn't). Both steps are logged.
+    case 'hotspot.create_voucher': {
+      const addParams = [
         `=name=${a.code}`,
         `=password=${a.code}`,
         `=profile=${a.profile ?? 'default'}`,
         ...(a.limitUptime ? [`=limit-uptime=${a.limitUptime}`] : []),
         ...(a.comment ? [`=comment=${a.comment}`] : []),
-      ]);
+      ];
+      log.info(`create_voucher: /ip/hotspot/user/add ${JSON.stringify(addParams)}`);
+      const addResult = await conn.runStrict('/ip/hotspot/user/add', addParams);
+      log.info(`create_voucher: add response ${JSON.stringify(addResult)}`);
+
+      // Read back by name to confirm the user is really on the router.
+      const check = await conn.runStrict('/ip/hotspot/user/print', [`?name=${a.code}`]);
+      if (!Array.isArray(check) || check.length === 0) {
+        throw new Error(`User "${a.code}" haikupatikana baada ya add — RouterOS haikuiunda (angalia profile "${a.profile ?? 'default'}" ipo?)`);
+      }
+      log.info(`create_voucher: THIBITISHO — user "${a.code}" ipo kwenye router (.id=${check[0]['.id']})`);
+      return check;
+    }
 
     case 'hotspot.create_profile':
       return conn.runStrict('/ip/hotspot/user/profile/add', profileParams(a));
