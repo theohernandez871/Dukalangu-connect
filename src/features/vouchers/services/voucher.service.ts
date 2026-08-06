@@ -2,6 +2,12 @@ import { voucherRepository } from './voucher.repository';
 import { commandService } from '@/features/routers/services/agent.service';
 import type { Voucher, VoucherBatch, VoucherStatus, GenerateVouchersInput } from '../types/voucher';
 
+export interface GenerateResult {
+  batchId: string;
+  pushedToRouter: boolean;
+  enqueued: number;
+}
+
 interface BatchRow {
   id: string;
   company_id: string;
@@ -32,34 +38,58 @@ function pkgName(p: { name: string } | { name: string }[] | null): string | null
 }
 
 export const voucherService = {
-  async generate(input: GenerateVouchersInput): Promise<string> {
+  async generate(input: GenerateVouchersInput): Promise<GenerateResult> {
     const { data, error } = await voucherRepository.generate(input);
     if (error) throw error;
     const batchId = data as string;
 
-    // Push each voucher to the router as a hotspot user, so it appears under
-    // Hotspot -> Users on the MikroTik. The DB write above only records the
-    // voucher; without this step it never reaches the router.
-    if (input.routerId) {
-      await voucherService.pushBatchToRouter(batchId, input.routerId, input.routerProfile ?? 'default');
+    // If no router selected, we're done (DB-only vouchers).
+    if (!input.routerId) {
+      return { batchId, pushedToRouter: false, enqueued: 0 };
     }
-    return batchId;
+
+    // Verify an active agent can serve this router — otherwise the commands
+    // would sit in the queue forever and the user would never see them appear.
+    const agents = await commandService.countActiveAgents(input.routerId).catch(() => 0);
+    if (agents === 0) {
+      throw new Error(
+        'Vocha zimehifadhiwa, LAKINI hakuna agent inayoendesha kwa router hii. ' +
+          'Endesha agent kwenye kifaa cha LAN, kisha "Peleka MikroTik" tena kutoka kwa batch.',
+      );
+    }
+
+    // Push each code to the router as a hotspot user via the command queue.
+    const enqueued = await voucherService.pushBatchToRouter(
+      batchId,
+      input.routerId,
+      input.routerProfile ?? 'default',
+    );
+    return { batchId, pushedToRouter: true, enqueued };
   },
 
-  /** Enqueue a create-user command per voucher code in a batch. */
-  async pushBatchToRouter(batchId: string, routerId: string, profile: string): Promise<void> {
+  /** How many active agents can serve this router (0 = none running). */
+  async countAgents(routerId: string): Promise<number> {
+    return commandService.countActiveAgents(routerId).catch(() => 0);
+  },
+
+  /** Enqueue a create-user command per voucher code. Returns count enqueued. */
+  async pushBatchToRouter(batchId: string, routerId: string, profile: string): Promise<number> {
     const { data, error } = await voucherRepository.listVouchersByBatch(batchId);
     if (error) throw error;
     const codes = (data ?? []) as { code: string }[];
-    // Sequential enqueue keeps ordering and avoids overwhelming the queue; the
-    // agent executes them serially and auto-syncs after mutations.
+    if (codes.length === 0) {
+      throw new Error('Hakuna codes za kupeleka (batch tupu au RLS imezuia kusoma).');
+    }
+    let count = 0;
     for (const { code } of codes) {
       await commandService.enqueueWithParams(routerId, 'hotspot.create_voucher', {
         code,
         profile,
         comment: `voucher:${batchId.slice(0, 8)}`,
       });
+      count += 1;
     }
+    return count;
   },
 
   async listBatches(companyId: string): Promise<VoucherBatch[]> {

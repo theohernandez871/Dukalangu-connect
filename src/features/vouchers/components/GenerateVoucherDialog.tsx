@@ -39,9 +39,9 @@ export function GenerateVoucherDialog({ open, onClose, onGenerated }: GenerateVo
 
   const submit = handleSubmit((values) => {
     generate.mutate(values, {
-      onSuccess: (batchId) => {
+      onSuccess: (result) => {
         reset({ count: 50, length: 8 });
-        onGenerated(batchId);
+        onGenerated(result.batchId);
         onClose();
       },
     });
@@ -62,7 +62,11 @@ export function GenerateVoucherDialog({ open, onClose, onGenerated }: GenerateVo
       }
     >
       <form onSubmit={submit} className="space-y-4" noValidate>
-        {generate.isError && <Alert tone="danger">Imeshindikana kutengeneza vocha.</Alert>}
+        {generate.isError && (
+          <Alert tone="danger">
+            {generate.error instanceof Error ? generate.error.message : 'Imeshindikana kutengeneza vocha.'}
+          </Alert>
+        )}
         <Select label="Kifurushi" placeholder="Chagua kifurushi" options={pkgOptions} error={errors.packageId?.message} {...register('packageId')} />
         <div className="grid gap-4 sm:grid-cols-2">
           <Input label="Idadi ya vocha" type="number" placeholder="50" error={errors.count?.message} {...register('count', { valueAsNumber: true })} />
