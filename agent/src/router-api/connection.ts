@@ -1,11 +1,14 @@
 // RouterOS API client wrapper (ports 8728/8729) with connect + auto-reconnect.
 // Uses node-routeros, which speaks the binary API protocol for v6 and v7.
 //
-// Robustness (RouterOS 7.20+ / UNKNOWNREPLY):
-//  - An error listener is attached to the API so async socket errors (emitted
-//    outside our await) are captured instead of crashing the process.
-//  - Every command is wrapped; a single failed command never kills the agent.
-//  - The command and any response detail are logged before we recover.
+// Robustness:
+//  - All commands are SERIALIZED through a mutex: one request finishes before
+//    the next starts. RouterOS multiplexes replies by tag on a single socket,
+//    and concurrent writes cause "Received data on unregistered tag". The mutex
+//    removes that race (heartbeat vs poll vs sync sharing one connection).
+//  - RouterOS 7.20+ `!empty` replies are handled as empty results, not crashes.
+//  - An error listener captures async socket errors instead of crashing Node.
+//  - A single failed command returns [] and never aborts the loop.
 
 import { RouterOSAPI } from 'node-routeros';
 import { createLogger } from '../logging/logger.js';
@@ -29,6 +32,9 @@ export class RouterConnection {
   private api: RouterOSAPI | null = null;
   private connected = false;
   private lastError: string | null = null;
+  // Serializes all socket I/O: each run() awaits the previous one. Prevents
+  // "Received data on unregistered tag" from concurrent writes on one socket.
+  private queue: Promise<unknown> = Promise.resolve();
 
   constructor(private readonly creds: RouterCredentials, private readonly label: string) {}
 
@@ -89,11 +95,30 @@ export class RouterConnection {
   }
 
   /**
-   * Run a single command. Never throws to the caller — returns [] on failure so
-   * one bad command cannot abort the polling/sync loop. Logs the command and
-   * any RouterOS response detail before recovering. Reconnects once on error.
+   * Serialize an operation on the socket: chain it after any in-flight op so
+   * only one request uses the connection at a time. Errors are isolated so one
+   * failed op does not break the chain for the next.
    */
-  async run(path: string, params: string[] = []): Promise<Record<string, string>[]> {
+  private serialize<T>(op: () => Promise<T>): Promise<T> {
+    const run = this.queue.then(op, op);
+    // Keep the chain alive regardless of this op's outcome.
+    this.queue = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  }
+
+  /**
+   * Run a single command. Never throws to the caller — returns [] on failure so
+   * one bad command cannot abort the polling/sync loop. Serialized: waits for
+   * any in-flight request first (no concurrent socket writes).
+   */
+  run(path: string, params: string[] = []): Promise<Record<string, string>[]> {
+    return this.serialize(() => this._run(path, params));
+  }
+
+  private async _run(path: string, params: string[] = []): Promise<Record<string, string>[]> {
     const start = Date.now();
     try {
       if (!this.api || !this.connected) await this.connect();
@@ -124,8 +149,12 @@ export class RouterConnection {
   }
 
   /** Like run() but throws on real failure — used for the connectivity probe.
-   *  Still treats `!empty` as an empty result (it is not a failure). */
-  async runStrict(path: string, params: string[] = []): Promise<Record<string, string>[]> {
+   *  Still treats `!empty` as an empty result. Also serialized. */
+  runStrict(path: string, params: string[] = []): Promise<Record<string, string>[]> {
+    return this.serialize(() => this._runStrict(path, params));
+  }
+
+  private async _runStrict(path: string, params: string[] = []): Promise<Record<string, string>[]> {
     try {
       if (!this.api || !this.connected) await this.connect();
       const res = await this.api!.write(path, params);

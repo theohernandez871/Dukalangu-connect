@@ -6,7 +6,7 @@ import { RouterWorker } from './RouterWorker.js';
 import { ServerClient, type PollRouter } from '../ws-client/client.js';
 import { createLogger, setRemoteSink } from '../logging/logger.js';
 import type { AgentConfig } from '../security/config.js';
-import type { CommandResult } from '../command-handler/handler.js';
+import type { CommandResult, Command } from '../command-handler/handler.js';
 
 const log = createLogger('agent-core');
 
@@ -29,8 +29,7 @@ export class Orchestrator {
   async start(): Promise<void> {
     this.running = true;
     log.info('Enterprise Agent imeanza');
-    void this.heartbeatLoop();
-    await this.pollLoop();
+    await this.mainLoop();
   }
 
   async stop(): Promise<void> {
@@ -60,8 +59,16 @@ export class Orchestrator {
     }
   }
 
-  /** Poll loop: fetch routers + commands, execute, acknowledge. */
-  private async pollLoop(): Promise<void> {
+  /**
+   * Single main loop. Poll runs every pollInterval; heartbeat + sync run on
+   * their own slower cadence, tracked by timestamp. Running everything in ONE
+   * loop (not two concurrent ones) guarantees a router's connection is never
+   * used by heartbeat and command-execution at the same time — the source of
+   * "Received data on unregistered tag". The per-connection mutex is a second
+   * layer of safety for multi-router setups.
+   */
+  private async mainLoop(): Promise<void> {
+    let lastHeartbeat = 0;
     while (this.running) {
       try {
         const { routers, commands } = await this.server.poll();
@@ -69,32 +76,21 @@ export class Orchestrator {
         log.debug(`Poll: routers=${routers.length}, commands=${cmdCount}`);
         this.sync(routers);
 
-        const results: CommandResult[] = [];
-        for (const [routerId, cmds] of Object.entries(commands)) {
-          log.info(`Nimepokea amri ${cmds.length} kwa router ${routerId.slice(0, 8)}: ${cmds.map((c) => c.command).join(', ')}`);
-          if (cmds.some((c) => c.command === 'agent.restart')) {
-            this.restartRequested = true;
-            results.push({ id: cmds.find((c) => c.command === 'agent.restart')!.id, ok: true });
-          }
-          const worker = this.workers.get(routerId);
-          if (worker) {
-            results.push(...(await worker.runCommands(cmds.filter((c) => c.command !== 'agent.restart'))));
-          } else {
-            log.warn(`Hakuna worker kwa router ${routerId.slice(0, 8)} — huenda host/credentials hazipo`);
-            for (const c of cmds.filter((c) => c.command !== 'agent.restart')) {
-              results.push({ id: c.id, ok: false, error: 'Router haina worker (host/credentials?)' });
-            }
-          }
-        }
-        if (results.length) {
-          log.info(`Narudisha matokeo ${results.length} kwa server`);
-          await this.server.ack(results);
-        }
-
+        // 1. Execute any queued commands first.
+        await this.runCommands(commands);
         if (this.restartRequested) {
           log.info('Restart imeombwa — nazima kwa ajili ya service manager');
           await this.stop();
           return;
+        }
+
+        // 2. Heartbeat + sync on the slower cadence, after commands finish.
+        if (Date.now() - lastHeartbeat >= this.cfg.heartbeat) {
+          lastHeartbeat = Date.now();
+          for (const worker of this.workers.values()) {
+            await worker.heartbeat();
+            await worker.syncIfDue();
+          }
         }
       } catch (e) {
         log.warn('Poll imeshindwa (mtandao?), najaribu tena', String(e));
@@ -104,14 +100,30 @@ export class Orchestrator {
     }
   }
 
-  /** Heartbeat loop: every HEARTBEAT_INTERVAL, all workers report metrics + sync. */
-  private async heartbeatLoop(): Promise<void> {
-    while (this.running) {
-      for (const worker of this.workers.values()) {
-        await worker.heartbeat();
-        await worker.syncIfDue();
+  /** Execute commands per router and acknowledge results. */
+  private async runCommands(commands: Record<string, Command[]>): Promise<void> {
+    const results: CommandResult[] = [];
+    for (const [routerId, cmds] of Object.entries(commands)) {
+      if (cmds.length === 0) continue;
+      log.info(`Nimepokea amri ${cmds.length} kwa router ${routerId.slice(0, 8)}: ${cmds.map((c) => c.command).join(', ')}`);
+      if (cmds.some((c) => c.command === 'agent.restart')) {
+        this.restartRequested = true;
+        results.push({ id: cmds.find((c) => c.command === 'agent.restart')!.id, ok: true });
       }
-      await delay(this.cfg.heartbeat);
+      const worker = this.workers.get(routerId);
+      const runnable = cmds.filter((c) => c.command !== 'agent.restart');
+      if (worker) {
+        results.push(...(await worker.runCommands(runnable)));
+      } else {
+        log.warn(`Hakuna worker kwa router ${routerId.slice(0, 8)} — huenda host/credentials hazipo`);
+        for (const c of runnable) {
+          results.push({ id: c.id, ok: false, error: 'Router haina worker (host/credentials?)' });
+        }
+      }
+    }
+    if (results.length) {
+      log.info(`Narudisha matokeo ${results.length} kwa server`);
+      await this.server.ack(results);
     }
   }
 }
