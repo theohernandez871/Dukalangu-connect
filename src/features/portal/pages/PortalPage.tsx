@@ -1,18 +1,30 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { usePortal } from '../hooks/usePortal';
+import { usePortal, usePortalPackages } from '../hooks/usePortal';
 import { VoucherLogin } from '../components/VoucherLogin';
 import { AdsBanner } from '../components/AdsBanner';
 import { OffersList, AnnouncementsList } from '../components/PortalContent';
 import { PortalSuccess } from '../components/PortalSuccess';
-import type { RedeemResult } from '../types/portal';
+import { PackageStore } from '../components/PackageStore';
+import type { PortalPackage, RedeemResult } from '../types/portal';
 
 const DEFAULT_COLOR = '#059669';
 
 export function PortalPage() {
   const { slug = '' } = useParams();
   const { data, isLoading, isError } = usePortal(slug);
+  const { data: packages } = usePortalPackages(slug);
   const [result, setResult] = useState<RedeemResult | null>(null);
+  const [buying, setBuying] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const onBuy = (pkg: PortalPackage) => {
+    // Module 2 delivers the store UI. The actual payment gateway (Snippe) is
+    // wired in Module 3 — until then, buying explains what will happen.
+    setBuying(pkg.id);
+    setNotice(`Malipo ya "${pkg.name}" (TSH ${pkg.price.toLocaleString()}) yatapatikana hivi karibuni. Kwa sasa tumia voucher.`);
+    setTimeout(() => setBuying(null), 400);
+  };
 
   if (isLoading) {
     return (
@@ -69,7 +81,22 @@ export function PortalPage() {
           )}
         </div>
 
-        {!result?.ok && <OffersList offers={offers} primaryColor={color} />}
+        {!result?.ok && (
+          <>
+            {notice && (
+              <div className="rounded-2xl bg-amber-50 p-3 text-center text-sm text-amber-800">
+                {notice}
+              </div>
+            )}
+            <PackageStore
+              packages={packages ?? []}
+              primaryColor={color}
+              busyId={buying}
+              onBuy={onBuy}
+            />
+            <OffersList offers={offers} primaryColor={color} />
+          </>
+        )}
 
         <div className="mt-auto pt-4 text-center text-xs text-slate-400">
           {settings.support_phone && <p>Msaada: {settings.support_phone}</p>}

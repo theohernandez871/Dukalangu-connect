@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase';
-import type { PortalData, RedeemResult } from '../types/portal';
+import type { PortalData, PortalPackage, RedeemResult } from '../types/portal';
 
 /**
  * Public portal service. Uses SECURITY DEFINER RPCs callable by `anon`, so no
@@ -10,6 +10,12 @@ export const portalService = {
     const { data, error } = await supabase.rpc('get_portal', { p_slug: slug });
     if (error) throw error;
     return (data as PortalData) ?? null;
+  },
+
+  async loadPackages(slug: string): Promise<PortalPackage[]> {
+    const { data, error } = await supabase.rpc('portal_packages', { p_slug: slug });
+    if (error) throw error;
+    return (data as PortalPackage[]) ?? [];
   },
 
   async redeem(slug: string, code: string, mac?: string | null): Promise<RedeemResult> {
