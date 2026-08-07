@@ -22,6 +22,7 @@ export type RouterCommandKey =
   | 'hotspot.update_profile'
   | 'hotspot.servers'
   | 'hotspot.bindings'
+  | 'hotspot.diagnose'
   | 'pppoe.secrets'
   | 'pppoe.active'
   | 'pppoe.disconnect'
@@ -55,6 +56,7 @@ export const COMMAND_CATALOG: Record<RouterCommandKey, CommandMeta> = {
   'hotspot.update_profile': { key: 'hotspot.update_profile', label: 'Sasisha package/profile', mutating: true },
   'hotspot.servers': { key: 'hotspot.servers', label: 'Hotspot Servers', mutating: false },
   'hotspot.bindings': { key: 'hotspot.bindings', label: 'IP Bindings', mutating: false },
+  'hotspot.diagnose': { key: 'hotspot.diagnose', label: 'Chunguza Hotspot', mutating: true },
   'pppoe.secrets': { key: 'pppoe.secrets', label: 'Akaunti za PPPoE', mutating: false },
   'pppoe.active': { key: 'pppoe.active', label: 'Muunganisho hai (PPPoE)', mutating: false },
   'pppoe.disconnect': { key: 'pppoe.disconnect', label: 'Kata muunganisho', mutating: true },

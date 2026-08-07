@@ -3,6 +3,7 @@ import { ArrowPathIcon, PowerIcon } from '@heroicons/react/24/outline';
 import { Button } from '@/components/ui/Button';
 import { DeleteConfirmDialog } from '@/components/feedback/DeleteConfirmDialog';
 import { RouterTestButton } from './RouterTestButton';
+import { HotspotDiagnoseButton } from './HotspotDiagnoseButton';
 import { useRouterCommand } from '../hooks/useRouterCommand';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -17,6 +18,7 @@ export function RouterCommandControls({ routerId }: { routerId: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <RouterTestButton routerId={routerId} />
+      <HotspotDiagnoseButton routerId={routerId} />
       <Button variant="secondary" size="sm" isLoading={sending === 'sync.all'} onClick={() => send(routerId, 'sync.all')}>
         <ArrowPathIcon className="h-4 w-4" /> Sync sasa
       </Button>

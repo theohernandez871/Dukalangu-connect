@@ -77,6 +77,45 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
     case 'hotspot.enable_user':
       return conn.runStrict('/ip/hotspot/user/enable', [`=.id=${a.id}`]);
 
+    // Diagnostic: create a known test user and report hotspot server health, so
+    // we can tell whether a login failure is credentials or server config.
+    case 'hotspot.diagnose': {
+      const report: Record<string, unknown> = {};
+
+      // 1. Hotspot servers + invalid status.
+      const servers = await conn.run('/ip/hotspot/print', ['=detail=']);
+      report.servers = servers.map((s) => ({
+        name: s.name,
+        interface: s.interface,
+        profile: s.profile,
+        disabled: s.disabled,
+        invalid: s.invalid,
+      }));
+      log.info(`diagnose: servers ${JSON.stringify(report.servers)}`);
+
+      // 2. Server profiles (login method: http-pap/http-chap/cookie).
+      const sprofiles = await conn.run('/ip/hotspot/profile/print', ['=detail=']);
+      report.serverProfiles = sprofiles.map((p) => ({
+        name: p.name,
+        'login-by': p['login-by'],
+        'hotspot-address': p['hotspot-address'],
+      }));
+      log.info(`diagnose: serverProfiles ${JSON.stringify(report.serverProfiles)}`);
+
+      // 3. Create a deterministic test user (idempotent-ish: ignore if exists).
+      try {
+        await conn.runStrict('/ip/hotspot/user/add', ['=name=test123', '=password=test123', '=profile=default']);
+        log.info('diagnose: test user test123/test123 imeundwa');
+      } catch (e) {
+        log.info(`diagnose: test user add -> ${String(e)} (huenda ipo tayari)`);
+      }
+      const testUser = await conn.run('/ip/hotspot/user/print', ['=detail=', '?name=test123']);
+      report.testUser = testUser[0] ?? null;
+      log.info(`diagnose: testUser ${JSON.stringify(report.testUser)}`);
+
+      return report;
+    }
+
     case 'hotspot.disable_user':
       return conn.runStrict('/ip/hotspot/user/disable', [`=.id=${a.id}`]);
 
@@ -109,12 +148,34 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
       const addResult = await conn.runStrict('/ip/hotspot/user/add', addParams);
       log.info(`create_voucher: add response ${JSON.stringify(addResult)}`);
 
-      // Read back by name to confirm the user is really on the router.
-      const check = await conn.runStrict('/ip/hotspot/user/print', [`?name=${a.code}`]);
+      // Read back by name to confirm the user is really on the router, and log
+      // ALL fields so we can verify password/profile/disabled/server match.
+      const check = await conn.runStrict('/ip/hotspot/user/print', [
+        '=detail=',
+        `?name=${a.code}`,
+      ]);
       if (!Array.isArray(check) || check.length === 0) {
         throw new Error(`User "${a.code}" haikupatikana baada ya add — RouterOS haikuiunda.`);
       }
-      log.info(`create_voucher: THIBITISHO — user "${a.code}" ipo kwenye router (.id=${check[0]['.id']})`);
+      const u = check[0];
+      log.info(
+        `create_voucher: THIBITISHO — user "${a.code}": ` +
+          `name=${u.name}, password=${u.password ?? '(haisomeki)'}, profile=${u.profile ?? '(none)'}, ` +
+          `disabled=${u.disabled ?? '?'}, server=${u.server ?? 'all'}, .id=${u['.id']}`,
+      );
+
+      // Diagnostic: report hotspot server health. An INVALID server means NO
+      // user can log in regardless of credentials — this is the usual cause of
+      // "invalid username or password" when the user clearly exists.
+      const servers = await conn.run('/ip/hotspot/print', ['=detail=']);
+      for (const s of servers) {
+        const invalid = s.invalid === 'true';
+        log.info(
+          `create_voucher: hotspot server "${s.name}" -> interface=${s.interface ?? '?'}, ` +
+            `profile=${s.profile ?? '?'}, disabled=${s.disabled ?? '?'}, INVALID=${invalid}` +
+            (invalid ? ' ⚠️ SERVER INVALID — hakuna user atakayeweza kuingia!' : ''),
+        );
+      }
       return check;
     }
 
