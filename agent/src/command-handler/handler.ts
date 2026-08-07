@@ -5,6 +5,7 @@
 
 import { RouterConnection } from '../router-api/connection.js';
 import { READ_COMMANDS, isReadCommand } from '../router-api/commands.js';
+import { diagnoseHotspot } from './diagnose.js';
 import { createLogger } from '../logging/logger.js';
 
 const log = createLogger('command-handler');
@@ -77,44 +78,10 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
     case 'hotspot.enable_user':
       return conn.runStrict('/ip/hotspot/user/enable', [`=.id=${a.id}`]);
 
-    // Diagnostic: create a known test user and report hotspot server health, so
-    // we can tell whether a login failure is credentials or server config.
-    case 'hotspot.diagnose': {
-      const report: Record<string, unknown> = {};
-
-      // 1. Hotspot servers + invalid status.
-      const servers = await conn.run('/ip/hotspot/print', ['=detail=']);
-      report.servers = servers.map((s) => ({
-        name: s.name,
-        interface: s.interface,
-        profile: s.profile,
-        disabled: s.disabled,
-        invalid: s.invalid,
-      }));
-      log.info(`diagnose: servers ${JSON.stringify(report.servers)}`);
-
-      // 2. Server profiles (login method: http-pap/http-chap/cookie).
-      const sprofiles = await conn.run('/ip/hotspot/profile/print', ['=detail=']);
-      report.serverProfiles = sprofiles.map((p) => ({
-        name: p.name,
-        'login-by': p['login-by'],
-        'hotspot-address': p['hotspot-address'],
-      }));
-      log.info(`diagnose: serverProfiles ${JSON.stringify(report.serverProfiles)}`);
-
-      // 3. Create a deterministic test user (idempotent-ish: ignore if exists).
-      try {
-        await conn.runStrict('/ip/hotspot/user/add', ['=name=test123', '=password=test123', '=profile=default']);
-        log.info('diagnose: test user test123/test123 imeundwa');
-      } catch (e) {
-        log.info(`diagnose: test user add -> ${String(e)} (huenda ipo tayari)`);
-      }
-      const testUser = await conn.run('/ip/hotspot/user/print', ['=detail=', '?name=test123']);
-      report.testUser = testUser[0] ?? null;
-      log.info(`diagnose: testUser ${JSON.stringify(report.testUser)}`);
-
-      return report;
-    }
+    // Diagnostic: read real hotspot config + create a test user, so we can tell
+    // whether a login failure is credentials or server configuration.
+    case 'hotspot.diagnose':
+      return diagnoseHotspot(conn);
 
     case 'hotspot.disable_user':
       return conn.runStrict('/ip/hotspot/user/disable', [`=.id=${a.id}`]);
