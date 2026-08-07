@@ -25,6 +25,7 @@ const OmadaControllersPage = lazy(() => import('../../features/omada/pages/Omada
 const OmadaDetailPage = lazy(() => import('../../features/omada/pages/OmadaDetailPage').then((m) => ({ default: m.OmadaDetailPage })));
 const PackagesPage = lazy(() => import('../../features/packages/pages/PackagesPage').then((m) => ({ default: m.PackagesPage })));
 const VouchersPage = lazy(() => import('../../features/vouchers/pages/VouchersPage').then((m) => ({ default: m.VouchersPage })));
+const QuickSellPage = lazy(() => import('../../features/vouchers/pages/QuickSellPage').then((m) => ({ default: m.QuickSellPage })));
 const PortalPage = lazy(() => import('../../features/portal/pages/PortalPage').then((m) => ({ default: m.PortalPage })));
 const PortalAdminPage = lazy(() => import('../../features/portal/pages/PortalAdminPage').then((m) => ({ default: m.PortalAdminPage })));
 
@@ -64,6 +65,7 @@ export function AppRouter() {
               <Route path={ROUTES.tplinkDetail} element={<OmadaDetailPage />} />
               <Route path={ROUTES.packages} element={<PackagesPage />} />
               <Route path={ROUTES.vouchers} element={<VouchersPage />} />
+              <Route path={ROUTES.quickSell} element={<QuickSellPage />} />
               <Route path={ROUTES.portalAdmin} element={<PortalAdminPage />} />
             </Route>
           </Route>

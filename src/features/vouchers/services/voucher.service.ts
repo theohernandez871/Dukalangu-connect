@@ -92,6 +92,30 @@ export const voucherService = {
     return count;
   },
 
+  /**
+   * Quick Sell: create exactly ONE voucher for a package, push it to the router
+   * as a hotspot user, and return the created voucher for immediate display /
+   * printing. Reuses generate() + pushBatchToRouter() — no new write path.
+   */
+  async quickSell(input: GenerateVouchersInput): Promise<Voucher> {
+    const result = await voucherService.generate({ ...input, count: 1 });
+    const { data, error } = await voucherRepository.fullVouchersByBatch(result.batchId);
+    if (error) throw error;
+    const row = (data ?? [])[0] as VoucherRow | undefined;
+    if (!row) throw new Error('Voucher haikuundwa. Jaribu tena.');
+    return {
+      id: row.id,
+      batchId: row.batch_id,
+      packageId: row.package_id,
+      packageName: pkgName(row.package),
+      code: row.code,
+      status: row.status,
+      usedAt: row.used_at,
+      expiresAt: row.expires_at,
+      createdAt: row.created_at,
+    };
+  },
+
   async listBatches(companyId: string): Promise<VoucherBatch[]> {
     const { data, error } = await voucherRepository.listBatches(companyId);
     if (error) throw error;
@@ -132,8 +156,7 @@ export const voucherService = {
 
   async setStatus(id: string, status: VoucherStatus): Promise<void> {
     const { error } = await voucherRepository.setStatus(id, status);
-    if (error) throw error;
-  },
+    if (error) throw error;  },
 
   async removeBatch(id: string): Promise<void> {
     const { error } = await voucherRepository.removeBatch(id);
