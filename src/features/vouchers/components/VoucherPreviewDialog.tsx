@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
+import { PrinterIcon } from '@heroicons/react/24/outline';
 import { Dialog } from '@/components/ui/Dialog';
+import { Button } from '@/components/ui/Button';
 import { CopyButton } from '@/components/ui/CopyButton';
+import { useVoucherTicket } from '../hooks/useVoucherTicket';
 import { qrDataUrl, formatCode } from '../utils/codes';
 import type { Voucher } from '../types/voucher';
 
@@ -24,6 +27,7 @@ function CredRow({ label, value }: { label: string; value: string }) {
 
 export function VoucherPreviewDialog({ voucher, onClose }: VoucherPreviewDialogProps) {
   const [qr, setQr] = useState<string>('');
+  const { printTicket, printing } = useVoucherTicket();
 
   // Username and password both equal the voucher code (hotspot user created on
   // the router with name=code, password=code). The QR encodes both so a phone
@@ -58,6 +62,18 @@ export function VoucherPreviewDialog({ voucher, onClose }: VoucherPreviewDialogP
                 <span className="font-medium text-slate-900 dark:text-white">{expire}</span>
               </div>
             )}
+          </div>
+
+          <div className="flex w-full flex-wrap gap-2">
+            <Button variant="secondary" size="sm" className="flex-1" isLoading={printing} onClick={() => voucher && printTicket(voucher, '58mm')}>
+              <PrinterIcon className="h-4 w-4" /> 58mm
+            </Button>
+            <Button variant="secondary" size="sm" className="flex-1" isLoading={printing} onClick={() => voucher && printTicket(voucher, '80mm')}>
+              <PrinterIcon className="h-4 w-4" /> 80mm
+            </Button>
+            <Button variant="secondary" size="sm" className="flex-1" isLoading={printing} onClick={() => voucher && printTicket(voucher, 'a4')}>
+              <PrinterIcon className="h-4 w-4" /> A4
+            </Button>
           </div>
 
           <p className="text-xs text-slate-400">
