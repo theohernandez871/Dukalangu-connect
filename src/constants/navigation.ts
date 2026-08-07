@@ -46,7 +46,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'Uza Haraka', to: ROUTES.quickSell, icon: BoltIcon, permission: 'voucher:manage', enabled: true },
   { label: 'Portal ya Wateja', to: ROUTES.portalAdmin, icon: GlobeAltIcon, permission: 'settings:manage', enabled: true },
   { label: 'Malipo', to: '/payments', icon: CreditCardIcon, permission: 'payment:view', enabled: false },
-  { label: 'Ripoti', to: '/reports', icon: ChartBarIcon, permission: 'report:view', enabled: false },
+  { label: 'Ripoti', to: ROUTES.reports, icon: ChartBarIcon, permission: 'report:view', enabled: true },
   { label: 'Arifa', to: '/notifications', icon: BellAlertIcon, enabled: false },
   { label: 'Mipangilio', to: '/settings', icon: Cog6ToothIcon, permission: 'settings:manage', enabled: false },
 ];
