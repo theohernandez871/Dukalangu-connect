@@ -6,6 +6,7 @@ import { AdsBanner } from '../components/AdsBanner';
 import { OffersList, AnnouncementsList } from '../components/PortalContent';
 import { PortalSuccess } from '../components/PortalSuccess';
 import { PackageStore } from '../components/PackageStore';
+import { PurchaseDialog } from '../components/PurchaseDialog';
 import type { PortalPackage, RedeemResult } from '../types/portal';
 
 const DEFAULT_COLOR = '#059669';
@@ -15,16 +16,9 @@ export function PortalPage() {
   const { data, isLoading, isError } = usePortal(slug);
   const { data: packages } = usePortalPackages(slug);
   const [result, setResult] = useState<RedeemResult | null>(null);
-  const [buying, setBuying] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [buyPkg, setBuyPkg] = useState<PortalPackage | null>(null);
 
-  const onBuy = (pkg: PortalPackage) => {
-    // Module 2 delivers the store UI. The actual payment gateway (Snippe) is
-    // wired in Module 3 — until then, buying explains what will happen.
-    setBuying(pkg.id);
-    setNotice(`Malipo ya "${pkg.name}" (TSH ${pkg.price.toLocaleString()}) yatapatikana hivi karibuni. Kwa sasa tumia voucher.`);
-    setTimeout(() => setBuying(null), 400);
-  };
+  const onBuy = (pkg: PortalPackage) => setBuyPkg(pkg);
 
   if (isLoading) {
     return (
@@ -83,15 +77,10 @@ export function PortalPage() {
 
         {!result?.ok && (
           <>
-            {notice && (
-              <div className="rounded-2xl bg-amber-50 p-3 text-center text-sm text-amber-800">
-                {notice}
-              </div>
-            )}
             <PackageStore
               packages={packages ?? []}
               primaryColor={color}
-              busyId={buying}
+              busyId={null}
               onBuy={onBuy}
             />
             <OffersList offers={offers} primaryColor={color} />
@@ -103,6 +92,8 @@ export function PortalPage() {
           <p className="mt-1">Inaendeshwa na {settings.brand_name ?? 'Hotspot Billing'}</p>
         </div>
       </div>
+
+      <PurchaseDialog slug={slug} pkg={buyPkg} primaryColor={color} onClose={() => setBuyPkg(null)} />
     </div>
   );
 }

@@ -18,6 +18,25 @@ export const portalService = {
     return (data as PortalPackage[]) ?? [];
   },
 
+  /** Start a mobile-money purchase. Calls the create-payment Edge Function,
+   *  which validates price server-side and triggers the USSD push. */
+  async createPayment(input: {
+    slug: string;
+    packageId: string;
+    phone: string;
+    routerId?: string | null;
+  }): Promise<{ ok: boolean; transactionId?: string; reference?: string; message?: string; error?: string }> {
+    const { data, error } = await supabase.functions.invoke('snippe-create-payment', {
+      body: input,
+    });
+    if (error) {
+      // Edge errors may carry a JSON body with a friendly message.
+      const ctx = (error as { context?: { error?: string } }).context;
+      return { ok: false, error: ctx?.error ?? error.message };
+    }
+    return data as { ok: boolean; transactionId?: string; reference?: string; message?: string };
+  },
+
   async redeem(slug: string, code: string, mac?: string | null): Promise<RedeemResult> {
     const { data, error } = await supabase.rpc('portal_redeem_voucher', {
       p_slug: slug,
