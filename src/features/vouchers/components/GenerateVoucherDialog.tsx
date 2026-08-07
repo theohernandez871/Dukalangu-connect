@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog } from '@/components/ui/Dialog';
@@ -27,6 +28,8 @@ export function GenerateVoucherDialog({ open, onClose, onGenerated }: GenerateVo
     register,
     handleSubmit,
     reset,
+    watch,
+    setValue,
     formState: { errors },
   } = useForm<GenerateFormInput>({
     resolver: zodResolver(generateSchema),
@@ -36,6 +39,15 @@ export function GenerateVoucherDialog({ open, onClose, onGenerated }: GenerateVo
   const pkgOptions = (packages ?? []).filter((p) => p.isActive).map((p) => ({ value: p.id, label: p.name }));
   const branchOptions = (branches ?? []).map((b) => ({ value: b.id, label: b.name }));
   const routerOptions = (routers ?? []).map((r) => ({ value: r.id, label: r.name }));
+
+  // When a package is chosen, prefill the RouterOS profile from the package's
+  // routerProfile (the real MikroTik profile NAME), so a UUID can never be sent
+  // as the profile. The user can still override the text if needed.
+  const selectedPackageId = watch('packageId');
+  useEffect(() => {
+    const pkg = (packages ?? []).find((p) => p.id === selectedPackageId);
+    if (pkg?.routerProfile) setValue('routerProfile', pkg.routerProfile);
+  }, [selectedPackageId, packages, setValue]);
 
   const submit = handleSubmit((values) => {
     generate.mutate(values, {

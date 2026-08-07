@@ -61,6 +61,11 @@ export function startMockRouter(port = 8728) {
 
       if (cmd === '/login') {
         send(withTag(['!done']));
+      } else if (cmd === '/ip/hotspot/user/profile/print') {
+        // The router ships a "default" profile; return it so voucher creation
+        // (which validates the profile name) can proceed.
+        send(withTag(['!re', '=.id=*0', '=name=default']));
+        send(withTag(['!done']));
       } else if (cmd === '/ip/hotspot/user/add') {
         // Record the added user so a follow-up print can return it.
         const nameArg = sentence.find((w) => w.startsWith('=name='));

@@ -84,10 +84,24 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
     // the user, then read it back to PROVE it exists on the router (or surface
     // the real reason it doesn't). Both steps are logged.
     case 'hotspot.create_voucher': {
+      const profileName = a.profile ?? 'default';
+
+      // Guard: RouterOS wants the profile NAME (e.g. "default"), not a database
+      // UUID. Verify the profile exists on the router first, so we fail with a
+      // clear message instead of the opaque "input does not match any value".
+      const profiles = await conn.runStrict('/ip/hotspot/user/profile/print');
+      const names = (Array.isArray(profiles) ? profiles : []).map((p) => p.name).filter(Boolean);
+      if (!names.includes(profileName)) {
+        throw new Error(
+          `Profile "${profileName}" haipo kwenye router. Profiles zilizopo: ${names.join(', ') || '(hakuna)'}. ` +
+            `Tumia JINA la profile (mfano "default"), si UUID ya database.`,
+        );
+      }
+
       const addParams = [
         `=name=${a.code}`,
         `=password=${a.code}`,
-        `=profile=${a.profile ?? 'default'}`,
+        `=profile=${profileName}`,
         ...(a.limitUptime ? [`=limit-uptime=${a.limitUptime}`] : []),
         ...(a.comment ? [`=comment=${a.comment}`] : []),
       ];
@@ -98,7 +112,7 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
       // Read back by name to confirm the user is really on the router.
       const check = await conn.runStrict('/ip/hotspot/user/print', [`?name=${a.code}`]);
       if (!Array.isArray(check) || check.length === 0) {
-        throw new Error(`User "${a.code}" haikupatikana baada ya add — RouterOS haikuiunda (angalia profile "${a.profile ?? 'default'}" ipo?)`);
+        throw new Error(`User "${a.code}" haikupatikana baada ya add — RouterOS haikuiunda.`);
       }
       log.info(`create_voucher: THIBITISHO — user "${a.code}" ipo kwenye router (.id=${check[0]['.id']})`);
       return check;
