@@ -35,6 +35,7 @@ const MUTATING_COMMANDS = new Set([
   'hotspot.delete_user',
   'hotspot.enable_user',
   'hotspot.disable_user',
+  'hotspot.extend_user',
   'hotspot.create_voucher',
   'hotspot.create_profile',
   'hotspot.update_profile',
@@ -85,6 +86,20 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
 
     case 'hotspot.disable_user':
       return conn.runStrict('/ip/hotspot/user/disable', [`=.id=${a.id}`]);
+
+    // Extend a user's allowed time by setting a new limit-uptime (e.g. "2h",
+    // "1d30m"). Accepts either the user's .id directly, or a username to resolve
+    // (active sessions expose the username, not the user record id).
+    case 'hotspot.extend_user': {
+      let id = a.id as string | undefined;
+      if (!id && a.user) {
+        const found = await conn.runStrict('/ip/hotspot/user/print', [`?name=${a.user}`]);
+        id = Array.isArray(found) && found[0] ? found[0]['.id'] : undefined;
+        if (!id) throw new Error(`Mtumiaji "${a.user}" hakupatikana kwenye router.`);
+      }
+      if (!id) throw new Error('Extend inahitaji id au user.');
+      return conn.runStrict('/ip/hotspot/user/set', [`=.id=${id}`, `=limit-uptime=${a.limitUptime}`]);
+    }
 
     // A voucher is a hotspot user with a limited-uptime/quota profile. Create
     // the user, then read it back to PROVE it exists on the router (or surface
