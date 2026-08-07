@@ -51,18 +51,23 @@ export async function buildVoucherPdf(vouchers: Voucher[], opts: PdfOptions): Pr
       doc.text(`TSH ${opts.price.toLocaleString()}`, x + cellW - 4, y + 6, { align: 'right' });
     }
 
-    // QR code
-    const qr = await qrDataUrl(vouchers[i].code);
+    // QR code — encodes the full login (username + password), not just the code
+    const code = vouchers[i].code;
+    const qr = await qrDataUrl(`Username: ${code}\nPassword: ${code}`);
     const qrSize = Math.min(cellH - 18, 24);
     doc.addImage(qr, 'PNG', x + 4, y + 14, qrSize, qrSize);
 
-    // Code text
+    // Credentials block (username + password both equal the code)
+    const tx = x + qrSize + 8;
     doc.setTextColor(20);
-    doc.setFontSize(13);
     doc.setFont('courier', 'bold');
-    doc.text(formatCode(vouchers[i].code), x + qrSize + 8, y + 14 + qrSize / 2, {
-      baseline: 'middle',
-    });
+    doc.setFontSize(11);
+    doc.text(formatCode(code), tx, y + 16);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(7);
+    doc.setTextColor(90);
+    doc.text(`Username: ${code}`, tx, y + 22);
+    doc.text(`Password: ${code}`, tx, y + 26);
     doc.setFont('helvetica', 'normal');
   }
 
