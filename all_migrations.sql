@@ -3,7 +3,7 @@
 -- =====================================================================
 -- Bandika faili hili LOTE kwenye Supabase SQL Editor kisha bonyeza RUN.
 -- Ni salama kuendesha mara nyingi (idempotent).
--- Toleo: v11 (imeongeza 0017: credential read fix - vault via RPC).
+-- Toleo: v12 (imeongeza 0018: package validity_days - Phase 2 Module 1).
 -- Inahitaji "supabase_vault" + "pgcrypto" (SQL inaziwasha yenyewe).
 -- =====================================================================
 
@@ -1959,3 +1959,22 @@ grant execute on function public.get_omada_password(uuid) to service_role;
 -- it prevents confusion about where credentials live (answer: Vault only).
 alter table public.router_credentials drop column if exists password_enc;
 
+
+-- #####################################################################
+-- FROM: 0018_package_validity.sql
+-- #####################################################################
+
+-- =====================================================================
+-- PHASE 2 / Module 1: Package validity.
+-- ADDITIVE ONLY — adds one nullable column. Does not touch existing columns,
+-- constraints, data, or the vouchers relationship. Safe to run repeatedly.
+--
+-- validity_days = how many days a voucher stays usable AFTER it is sold/
+-- generated. NULL = no validity limit (uses whatever the voucher sets).
+-- =====================================================================
+
+alter table public.packages
+  add column if not exists validity_days integer;
+
+comment on column public.packages.validity_days is
+  'Siku ambazo voucher inabaki hai baada ya kununuliwa (NULL = hakuna kikomo).';

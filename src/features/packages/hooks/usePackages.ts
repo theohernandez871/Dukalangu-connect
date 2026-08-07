@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { packageService } from '../services/package.service';
 import { useAuth } from '@/features/auth/hooks/useAuth';
-import type { PackageInput } from '../types/package';
+import type { PackageInput, Package } from '../types/package';
 
 export function usePackages() {
   const { session } = useAuth();
@@ -33,10 +33,14 @@ export function usePackageMutations() {
       packageService.setActive(vars.id, vars.isActive),
     onSuccess: invalidate,
   });
+  const duplicate = useMutation({
+    mutationFn: (pkg: Package) => packageService.duplicate(companyId, pkg),
+    onSuccess: invalidate,
+  });
   const remove = useMutation({
     mutationFn: (id: string) => packageService.remove(id),
     onSuccess: invalidate,
   });
 
-  return { create, update, setActive, remove };
+  return { create, update, setActive, duplicate, remove };
 }

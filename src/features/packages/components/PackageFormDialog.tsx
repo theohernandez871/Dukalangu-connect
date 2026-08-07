@@ -55,6 +55,7 @@ export function PackageFormDialog({ open, onClose, pkg }: PackageFormDialogProps
         speedDownKbps: pkg?.speedDownKbps ?? undefined,
         speedUpKbps: pkg?.speedUpKbps ?? undefined,
         routerProfile: pkg?.routerProfile ?? '',
+        validityDays: pkg?.validityDays ?? undefined,
         isActive: pkg?.isActive ?? true,
       });
     }
@@ -97,6 +98,7 @@ export function PackageFormDialog({ open, onClose, pkg }: PackageFormDialogProps
         <PackageDynamicFields type={type} register={register} errors={errors} />
 
         <Input label="RouterOS/Omada profile (hiari)" placeholder="1hour-profile" error={errors.routerProfile?.message} {...register('routerProfile')} />
+        <Input label="Uhalali baada ya kununua (siku, hiari)" type="number" placeholder="30" error={errors.validityDays?.message} {...register('validityDays', { valueAsNumber: true })} />
         <Input label="Maelezo (hiari)" placeholder="Kifurushi cha saa moja" error={errors.description?.message} {...register('description')} />
       </form>
     </Dialog>

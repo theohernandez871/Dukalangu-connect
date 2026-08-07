@@ -21,6 +21,7 @@ export const packageSchema = z
     speedDownKbps: optionalPositiveInt,
     speedUpKbps: optionalPositiveInt,
     routerProfile: z.string().optional(),
+    validityDays: optionalPositiveInt,
     isActive: z.boolean().optional(),
   })
   .superRefine((d, ctx) => {

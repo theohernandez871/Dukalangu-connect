@@ -5,16 +5,19 @@ import { Button } from '@/components/ui/Button';
 import { PackageList } from '../components/PackageList';
 import { PackageCard } from '../components/PackageCard';
 import { PackageFormDialog } from '../components/PackageFormDialog';
+import { PackageToolbar, filterPackages, type PackageFilters } from '../components/PackageToolbar';
 import { DeleteConfirmDialog } from '@/components/feedback/DeleteConfirmDialog';
 import { StatCardSkeleton } from '@/components/ui/Skeleton';
 import { usePackages, usePackageMutations } from '../hooks/usePackages';
+import { useBranches } from '@/features/companies/hooks/useCompany';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { cn } from '@/utils/cn';
 import type { Package } from '../types/package';
 
 export function PackagesPage() {
   const { data, isLoading, isError, refetch } = usePackages();
-  const { remove } = usePackageMutations();
+  const { remove, setActive, duplicate } = usePackageMutations();
+  const { data: branches } = useBranches();
   const { hasPermission } = useAuth();
   const canManage = hasPermission('package:manage');
 
@@ -22,6 +25,10 @@ export function PackagesPage() {
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Package | null>(null);
   const [deleting, setDeleting] = useState<Package | null>(null);
+  const [filters, setFilters] = useState<PackageFilters>({ search: '', branchId: '', status: 'all' });
+
+  const branchOptions = (branches ?? []).map((b) => ({ value: b.id, label: b.name }));
+  const filtered = filterPackages(data ?? [], filters);
 
   return (
     <div>
@@ -55,14 +62,18 @@ export function PackagesPage() {
         }
       />
 
+      <PackageToolbar filters={filters} onChange={setFilters} branchOptions={branchOptions} />
+
       {view === 'table' ? (
         <PackageList
-          packages={data ?? []}
+          packages={filtered}
           isLoading={isLoading}
           isError={isError}
           onRetry={() => refetch()}
           onEdit={setEditing}
           onDelete={setDeleting}
+          onDuplicate={canManage ? (p) => duplicate.mutate(p) : undefined}
+          onToggle={canManage ? (p) => setActive.mutate({ id: p.id, isActive: !p.isActive }) : undefined}
         />
       ) : isLoading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -70,7 +81,7 @@ export function PackagesPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {(data ?? []).map((p) => (
+          {filtered.map((p) => (
             <PackageCard key={p.id} pkg={p} onClick={canManage ? () => setEditing(p) : undefined} />
           ))}
         </div>

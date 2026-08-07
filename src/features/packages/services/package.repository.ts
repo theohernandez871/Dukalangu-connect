@@ -16,6 +16,7 @@ function toRow(companyId: string, input: PackageInput) {
     speed_up_kbps: input.speedUpKbps ?? null,
     time_window: input.timeWindow ?? null,
     router_profile: input.routerProfile || null,
+    validity_days: input.validityDays ?? null,
     is_active: input.isActive ?? true,
   };
 }
