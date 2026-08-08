@@ -3,7 +3,7 @@
 -- =====================================================================
 -- Bandika faili hili LOTE kwenye Supabase SQL Editor kisha bonyeza RUN.
 -- Ni salama kuendesha mara nyingi (idempotent).
--- Toleo: v15 (imeongeza 0021: payment_transactions - Phase 3 Module 3A).
+-- Toleo: v16 (imeongeza 0023-0024: reports by usage + auto-mark used).
 -- Inahitaji "supabase_vault" + "pgcrypto" (SQL inaziwasha yenyewe).
 -- =====================================================================
 
@@ -2186,3 +2186,161 @@ alter table public.payment_transactions enable row level security;
 drop policy if exists paytx_select on public.payment_transactions;
 create policy paytx_select on public.payment_transactions
   for select using (company_id = public.current_company_id());
+
+-- #####################################################################
+-- FROM: 0023_reports_by_usage.sql
+-- #####################################################################
+
+-- =====================================================================
+-- PHASE 2 / Module 5 FIX: count sales by USE, not by creation.
+-- ADDITIVE (replaces function bodies only; no schema change).
+--
+-- "Sales/revenue" now = vouchers that were USED (a customer logged in),
+-- measured by used_at. A batch of unsold vouchers no longer inflates revenue.
+-- Total revenue also counts only used vouchers. Counts of total/used/unused
+-- vouchers are unchanged.
+-- =====================================================================
+
+create or replace function public.get_voucher_reports(p_branch_id uuid default null)
+returns table (
+  sales_today_count    bigint,
+  sales_today_revenue  numeric,
+  sales_week_count     bigint,
+  sales_week_revenue   numeric,
+  sales_month_count    bigint,
+  sales_month_revenue  numeric,
+  total_vouchers       bigint,
+  used_vouchers        bigint,
+  unused_vouchers      bigint,
+  total_revenue        numeric
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $voucherreports2$
+declare
+  v_company uuid := public.current_company_id();
+begin
+  return query
+  with v as (
+    select vo.*, coalesce(pk.price, 0) as price
+      from public.vouchers vo
+      left join public.packages pk on pk.id = vo.package_id
+     where vo.company_id = v_company
+       and (p_branch_id is null or vo.branch_id = p_branch_id)
+  )
+  select
+    -- Sales = used vouchers, dated by used_at.
+    count(*) filter (where used_at::date = current_date),
+    coalesce(sum(price) filter (where used_at::date = current_date), 0),
+    count(*) filter (where used_at >= date_trunc('week', now())),
+    coalesce(sum(price) filter (where used_at >= date_trunc('week', now())), 0),
+    count(*) filter (where used_at >= date_trunc('month', now())),
+    coalesce(sum(price) filter (where used_at >= date_trunc('month', now())), 0),
+    -- Inventory counts (unchanged).
+    count(*),
+    count(*) filter (where status = 'used'),
+    count(*) filter (where status = 'unused'),
+    -- Total revenue = all used vouchers ever.
+    coalesce(sum(price) filter (where status = 'used'), 0)
+  from v;
+end;
+$voucherreports2$;
+
+-- Branch breakdown: revenue counts only used vouchers, to match the cards.
+create or replace function public.get_branch_reports()
+returns table (
+  branch_id       uuid,
+  branch_name     text,
+  voucher_count   bigint,
+  used_count      bigint,
+  revenue         numeric
+)
+language plpgsql
+stable
+security definer
+set search_path = public
+as $branchreports2$
+declare
+  v_company uuid := public.current_company_id();
+begin
+  return query
+  select
+    b.id,
+    b.name,
+    count(vo.id),
+    count(vo.id) filter (where vo.status = 'used'),
+    coalesce(sum(coalesce(pk.price, 0)) filter (where vo.status = 'used'), 0)
+  from public.branches b
+  left join public.vouchers vo on vo.branch_id = b.id and vo.company_id = v_company
+  left join public.packages pk on pk.id = vo.package_id
+  where b.company_id = v_company
+  group by b.id, b.name
+  order by revenue desc;
+end;
+$branchreports2$;
+
+-- #####################################################################
+-- FROM: 0024_mark_used_from_sync.sql
+-- #####################################################################
+
+-- =====================================================================
+-- Auto-detect used vouchers from MikroTik usage.
+-- ADDITIVE ONLY — one SECURITY DEFINER RPC. Does NOT touch MikroTik config.
+--
+-- A voucher's code equals its hotspot user name on the router. When that user
+-- has consumed time or data (uptime/bytes > 0), the voucher has been used. This
+-- RPC reads the agent's cached hotspot.users sync payload and marks matching
+-- vouchers as 'used' (only those still 'unused', so it's idempotent and never
+-- overwrites an existing used_at).
+--
+-- Called by the agent gateway after each hotspot.users sync (service role), so
+-- reports reflect real usage even when customers log in directly on the router.
+-- =====================================================================
+
+create or replace function public.mark_used_from_sync(p_router_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public, extensions
+as $markused$
+declare
+  _company   uuid;
+  _payload   jsonb;
+  _marked    integer := 0;
+begin
+  -- Company that owns this router.
+  select company_id into _company from public.routers where id = p_router_id;
+  if _company is null then
+    return 0;
+  end if;
+
+  -- Latest hotspot.users payload cached by the agent for this router.
+  select payload into _payload
+    from public.router_sync_data
+   where router_id = p_router_id and kind = 'hotspot.users';
+  if _payload is null then
+    return 0;
+  end if;
+
+  -- Mark unused vouchers used when their code matches a hotspot user that has
+  -- consumed uptime or data. Uses the JSON array from the sync cache.
+  with used_names as (
+    select u->>'name' as name
+      from jsonb_array_elements(_payload) as u
+     where coalesce(u->>'uptime', '') not in ('', '00:00:00')
+        or coalesce((u->>'bytes-in')::bigint, 0) > 0
+        or coalesce((u->>'bytes-out')::bigint, 0) > 0
+  )
+  update public.vouchers v
+     set status = 'used', used_at = now()
+    from used_names n
+   where v.company_id = _company
+     and v.code = n.name
+     and v.status = 'unused';
+
+  get diagnostics _marked = row_count;
+  return _marked;
+end;
+$markused$;

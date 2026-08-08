@@ -101,16 +101,30 @@ export async function handleHeartbeat(admin: SupabaseClient, agent: AgentRow, bo
 
 /** sync: upsert a kind of RouterOS data into the dashboard cache. */
 export async function handleSync(admin: SupabaseClient, agent: AgentRow, body: Record<string, unknown>) {
+  const routerId = String(body.routerId ?? '');
+  const kind = String(body.kind ?? '');
+
   await admin.from('router_sync_data').upsert(
     {
-      router_id: String(body.routerId ?? ''),
+      router_id: routerId,
       company_id: agent.company_id,
-      kind: String(body.kind ?? ''),
+      kind,
       payload: body.payload ?? [],
       synced_at: new Date().toISOString(),
     },
     { onConflict: 'router_id,kind' },
   );
+
+  // After a hotspot users sync, auto-mark vouchers whose hotspot user has
+  // consumed time/data as 'used', so reports reflect real usage even when
+  // customers log in directly on the router. Best-effort: never fail the sync.
+  if (kind === 'hotspot.users' && routerId) {
+    try {
+      await admin.rpc('mark_used_from_sync', { p_router_id: routerId });
+    } catch (_e) {
+      // Ignore — reporting enrichment must not break the sync path.
+    }
+  }
 }
 
 /** ack: mark commands done/failed with their results. */
