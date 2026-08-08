@@ -23,10 +23,16 @@ export function VoucherTable({ batchId }: { batchId?: string }) {
   const [preview, setPreview] = useState<Voucher | null>(null);
   const { data, isLoading, isError, refetch } = useVouchers(batchId, status || undefined);
 
+  const fmtDate = (iso: string | null) =>
+    iso ? new Date(iso).toLocaleDateString('sw-TZ', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+
   const columns: Column<Voucher>[] = [
     { key: 'code', header: 'Namba', cell: (v) => <span className="font-mono font-medium">{formatCode(v.code)}</span> },
     { key: 'package', header: 'Kifurushi', hideOnMobile: true, cell: (v) => v.packageName ?? '—' },
     { key: 'status', header: 'Hali', cell: (v) => <VoucherStatusBadge status={v.status} /> },
+    { key: 'created', header: 'Imetengenezwa', hideOnMobile: true, cell: (v) => fmtDate(v.createdAt) },
+    { key: 'used', header: 'Imetumika', hideOnMobile: true, cell: (v) => fmtDate(v.usedAt) },
+    { key: 'expires', header: 'Inaisha', hideOnMobile: true, cell: (v) => fmtDate(v.expiresAt) },
   ];
 
   return (

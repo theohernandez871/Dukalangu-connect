@@ -26,6 +26,9 @@ export interface HotspotUser {
   name?: string;
   profile?: string;
   'limit-uptime'?: string;
+  uptime?: string;
+  'bytes-in'?: string;
+  'bytes-out'?: string;
   disabled?: string;
 }
 
