@@ -17,6 +17,7 @@ export type RouterCommandKey =
   | 'hotspot.delete_user'
   | 'hotspot.enable_user'
   | 'hotspot.disable_user'
+  | 'hotspot.disable_by_name'
   | 'hotspot.extend_user'
   | 'hotspot.create_voucher'
   | 'hotspot.create_profile'
@@ -52,6 +53,7 @@ export const COMMAND_CATALOG: Record<RouterCommandKey, CommandMeta> = {
   'hotspot.delete_user': { key: 'hotspot.delete_user', label: 'Futa voucher/user', mutating: true },
   'hotspot.enable_user': { key: 'hotspot.enable_user', label: 'Wezesha user', mutating: true },
   'hotspot.disable_user': { key: 'hotspot.disable_user', label: 'Zima user', mutating: true },
+  'hotspot.disable_by_name': { key: 'hotspot.disable_by_name', label: 'Zima voucher (expiry)', mutating: true },
   'hotspot.extend_user': { key: 'hotspot.extend_user', label: 'Ongeza muda', mutating: true },
   'hotspot.create_voucher': { key: 'hotspot.create_voucher', label: 'Tengeneza voucher', mutating: true },
   'hotspot.create_profile': { key: 'hotspot.create_profile', label: 'Tengeneza package/profile', mutating: true },

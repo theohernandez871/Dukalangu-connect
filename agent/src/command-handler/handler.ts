@@ -35,6 +35,7 @@ const MUTATING_COMMANDS = new Set([
   'hotspot.delete_user',
   'hotspot.enable_user',
   'hotspot.disable_user',
+  'hotspot.disable_by_name',
   'hotspot.extend_user',
   'hotspot.create_voucher',
   'hotspot.create_profile',
@@ -86,6 +87,25 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
 
     case 'hotspot.disable_user':
       return conn.runStrict('/ip/hotspot/user/disable', [`=.id=${a.id}`]);
+
+    // Disable a hotspot user by NAME (voucher code). Used for auto-expiry, where
+    // we know the code but not the RouterOS .id. Resolves the id first, then
+    // disables. Also removes any active session so the customer is dropped.
+    case 'hotspot.disable_by_name': {
+      const found = await conn.run('/ip/hotspot/user/print', [`?name=${a.code}`]);
+      const id = Array.isArray(found) && found[0] ? found[0]['.id'] : undefined;
+      if (!id) {
+        // Nothing to disable (user already gone) — treat as success.
+        return [{ disabled: 'not-found', code: a.code }];
+      }
+      await conn.runStrict('/ip/hotspot/user/disable', [`=.id=${id}`]);
+      // Drop any live session for this user.
+      const active = await conn.run('/ip/hotspot/active/print', [`?user=${a.code}`]);
+      if (Array.isArray(active) && active[0]?.['.id']) {
+        await conn.run('/ip/hotspot/active/remove', [`=.id=${active[0]['.id']}`]);
+      }
+      return [{ disabled: id, code: a.code }];
+    }
 
     // Extend a user's allowed time by setting a new limit-uptime (e.g. "2h",
     // "1d30m"). Accepts either the user's .id directly, or a username to resolve
