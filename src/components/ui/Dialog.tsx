@@ -46,7 +46,10 @@ export function Dialog({ open, onClose, title, description, children, footer, si
             role="dialog"
             aria-modal="true"
             className={cn(
-              'relative w-full rounded-2xl border border-slate-200 bg-white shadow-soft-lg dark:border-slate-700 dark:bg-slate-900',
+              // Cap the height to the viewport and let the body scroll, so the
+              // header and footer (submit button) are always reachable on small
+              // screens instead of the form overflowing off-screen.
+              'relative flex max-h-[90vh] w-full flex-col rounded-2xl border border-slate-200 bg-white shadow-soft-lg dark:border-slate-700 dark:bg-slate-900',
               sizes[size],
             )}
           >
@@ -64,9 +67,9 @@ export function Dialog({ open, onClose, title, description, children, footer, si
                 <XMarkIcon className="h-5 w-5" />
               </button>
             </div>
-            <div className="px-6 py-5">{children}</div>
+            <div className="flex-1 overflow-y-auto px-6 py-5">{children}</div>
             {footer && (
-              <div className="flex justify-end gap-2 border-t border-slate-100 px-6 py-4 dark:border-slate-800">
+              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-6 py-4 dark:border-slate-800">
                 {footer}
               </div>
             )}
