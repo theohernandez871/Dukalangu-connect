@@ -68,6 +68,15 @@ export function AgentCreateDialog({ open, onClose }: AgentCreateDialogProps) {
             </code>
             <CopyButton value={created.rawToken} />
           </div>
+          <div className="rounded-xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-800/50 dark:text-slate-300">
+            <p className="mb-1 font-medium text-slate-700 dark:text-slate-200">Hatua zinazofuata:</p>
+            <ol className="list-decimal space-y-1 pl-4">
+              <li>Fungua faili <code className="font-mono text-xs">agent/.env</code> kwenye kompyuta ya agent</li>
+              <li>Weka token hapo juu kwenye <code className="font-mono text-xs">AGENT_TOKEN</code></li>
+              <li>Endesha agent (au isakinishe kama service ya 24/7)</li>
+              <li>Rudi hapa — agent itaonekana <strong>Hai (online)</strong></li>
+            </ol>
+          </div>
         </div>
       ) : (
         <div className="space-y-4">
