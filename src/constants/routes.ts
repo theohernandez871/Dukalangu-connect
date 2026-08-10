@@ -32,6 +32,7 @@ export const ROUTES = {
   quickSell: '/quick-sell',
   reports: '/reports',
   payments: '/payments',
+  notifications: '/notifications',
 
   // Phase 8B — Customer Portal (public)
   portal: '/portal/:slug',

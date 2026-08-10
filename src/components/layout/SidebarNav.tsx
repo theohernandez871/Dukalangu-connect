@@ -13,7 +13,7 @@ export function SidebarNav({ collapsed = false, onNavigate }: SidebarNavProps) {
   const { hasPermission } = useAuth();
 
   const visible = NAV_ITEMS.filter(
-    (item) => !item.permission || hasPermission(item.permission),
+    (item) => !item.hidden && (!item.permission || hasPermission(item.permission)),
   );
 
   return (
