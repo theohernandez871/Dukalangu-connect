@@ -4,6 +4,7 @@
 
 import { existsSync } from 'node:fs';
 import { loadSecure, saveSecure } from './secureStore.js';
+import { loadWizardConfig } from './wizardConfig.js';
 
 export interface AgentConfig {
   supabaseUrl: string;
@@ -43,6 +44,22 @@ function parseIntEnv(name: string, fallback: number): number {
 }
 
 export async function loadConfig(): Promise<AgentConfig> {
+  // Prefer the Setup Wizard config (encrypted store). Fall back to env for
+  // developer setups / backwards compatibility.
+  const wiz = await loadWizardConfig();
+  if (wiz.configured && wiz.agentToken && wiz.supabaseUrl) {
+    const supabaseUrl = wiz.supabaseUrl.replace(/\/$/, '');
+    return {
+      supabaseUrl,
+      supabaseAnonKey: wiz.supabaseAnonKey ?? '',
+      agentToken: wiz.agentToken,
+      pollInterval: parseIntEnv('POLL_INTERVAL', 3000),
+      heartbeat: parseIntEnv('HEARTBEAT_INTERVAL', 30000),
+      apiTimeout: parseIntEnv('API_TIMEOUT', 8000),
+      logLevel: (process.env.LOG_LEVEL as AgentConfig['logLevel']) ?? 'info',
+    };
+  }
+
   // AGENT_TOKEN may come from env (first run) or the encrypted store (later).
   const vault = await loadSecure();
   const envToken = process.env.AGENT_TOKEN?.trim();

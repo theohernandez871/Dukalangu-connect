@@ -16,6 +16,7 @@ import { Orchestrator } from './agent-core/Orchestrator.js';
 import { startUpdater } from './updater/updater.js';
 import { createLogger, setLogLevel } from './logging/logger.js';
 import { applyRouterOsCompatPatch } from './router-api/ros-compat.js';
+import { ensureConfigured } from './setup/launcher.js';
 
 // Patch node-routeros for RouterOS 7.20+ (!empty reply) before any connection.
 applyRouterOsCompatPatch();
@@ -24,6 +25,16 @@ const log = createLogger('main');
 const VERSION = '1.0.0';
 
 async function main(): Promise<void> {
+  // Setup Wizard: if this is a fresh install (or --setup passed), open the
+  // browser-based wizard and wait. The customer never edits .env by hand.
+  const forceSetup = process.argv.includes('--setup');
+  const ready = await ensureConfigured(forceSetup);
+  if (!ready) {
+    log.info('Agent inasubiri usanidi. Fungua browser kukamilisha, kisha anzisha upya agent.');
+    // Keep the process alive so the wizard server stays reachable.
+    return;
+  }
+
   const cfg = await loadConfig();
   setLogLevel(cfg.logLevel);
   log.info('Hotspot Billing — Enterprise Agent', {
