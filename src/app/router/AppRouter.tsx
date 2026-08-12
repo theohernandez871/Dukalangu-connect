@@ -29,6 +29,7 @@ const QuickSellPage = lazy(() => import('../../features/vouchers/pages/QuickSell
 const ReportsPage = lazy(() => import('../../features/reports/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })));
 const PaymentsPage = lazy(() => import('../../features/payments/pages/PaymentsPage').then((m) => ({ default: m.PaymentsPage })));
 const NotificationsPage = lazy(() => import('../../features/notifications/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const PayoutsPage = lazy(() => import('../../features/payouts/pages/PayoutsPage').then((m) => ({ default: m.PayoutsPage })));
 const PortalPage = lazy(() => import('../../features/portal/pages/PortalPage').then((m) => ({ default: m.PortalPage })));
 const PortalAdminPage = lazy(() => import('../../features/portal/pages/PortalAdminPage').then((m) => ({ default: m.PortalAdminPage })));
 
@@ -72,6 +73,7 @@ export function AppRouter() {
               <Route path={ROUTES.reports} element={<ReportsPage />} />
               <Route path={ROUTES.payments} element={<PaymentsPage />} />
               <Route path={ROUTES.notifications} element={<NotificationsPage />} />
+              <Route path={ROUTES.payouts} element={<PayoutsPage />} />
               <Route path={ROUTES.portalAdmin} element={<PortalAdminPage />} />
             </Route>
           </Route>

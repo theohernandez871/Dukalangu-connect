@@ -33,6 +33,7 @@ export const ROUTES = {
   reports: '/reports',
   payments: '/payments',
   notifications: '/notifications',
+  payouts: '/payouts',
 
   // Phase 8B — Customer Portal (public)
   portal: '/portal/:slug',
