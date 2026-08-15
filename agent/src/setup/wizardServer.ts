@@ -81,7 +81,7 @@ export function startWizardServer(port = 3500): Promise<number> {
           return;
         }
         await saveWizardConfig({ ...merged, configured: true } as WizardConfig);
-        json(res, 200, { ok: true, message: 'Imehifadhiwa. Anzisha upya agent ili itumie mipangilio mipya.' });
+        json(res, 200, { ok: true, message: 'Imehifadhiwa! Funga dirisha hili, kisha endesha install-service.bat (kama Administrator) kusakinisha Agent ya 24/7.' });
         return;
       }
 

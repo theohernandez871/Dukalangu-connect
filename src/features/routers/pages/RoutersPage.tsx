@@ -1,21 +1,13 @@
 import { useState } from 'react';
-import { PlusIcon, ServerStackIcon, SignalIcon } from '@heroicons/react/24/outline';
+import { PlusIcon } from '@heroicons/react/24/outline';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Button } from '@/components/ui/Button';
-import { Tabs, type TabItem } from '@/components/ui/Tabs';
 import { RouterList } from '../components/RouterList';
 import { RouterFormDialog } from '../components/RouterFormDialog';
-import { AgentList } from '../components/AgentList';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { useRouterRealtime } from '../hooks/useRouterRealtime';
 
-const TABS: TabItem[] = [
-  { id: 'routers', label: 'Routers', icon: <ServerStackIcon className="h-4 w-4" /> },
-  { id: 'agents', label: 'Agents', icon: <SignalIcon className="h-4 w-4" /> },
-];
-
 export function RoutersPage() {
-  const [tab, setTab] = useState('routers');
   const [creating, setCreating] = useState(false);
   const { hasPermission } = useAuth();
   const canManage = hasPermission('router:manage');
@@ -25,9 +17,9 @@ export function RoutersPage() {
     <div>
       <PageHeader
         title="Routers"
-        subtitle="Simamia router zako za MikroTik na agents"
+        subtitle="Simamia router zako za MikroTik"
         actions={
-          canManage && tab === 'routers' ? (
+          canManage ? (
             <Button onClick={() => setCreating(true)}>
               <PlusIcon className="h-5 w-5" /> Ongeza router
             </Button>
@@ -35,10 +27,8 @@ export function RoutersPage() {
         }
       />
 
-      <Tabs tabs={TABS} active={tab} onChange={setTab} />
       <div className="mt-6">
-        {tab === 'routers' && <RouterList />}
-        {tab === 'agents' && <AgentList />}
+        <RouterList />
       </div>
 
       <RouterFormDialog open={creating} onClose={() => setCreating(false)} />

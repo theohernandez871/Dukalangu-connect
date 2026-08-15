@@ -34,6 +34,7 @@ export const ROUTES = {
   payments: '/payments',
   notifications: '/notifications',
   payouts: '/payouts',
+  agents: '/agents',
 
   // Phase 8B — Customer Portal (public)
   portal: '/portal/:slug',
