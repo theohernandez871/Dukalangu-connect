@@ -7,7 +7,7 @@ import { AgentInstallGuide } from '../components/AgentInstallGuide';
 
 const TABS = [
   { id: 'agents', label: 'Agents', icon: <SignalIcon className="h-4 w-4" /> },
-  { id: 'guide', label: 'Pakua & Sanidi', icon: <BookOpenIcon className="h-4 w-4" /> },
+  { id: 'guide', label: 'Jinsi ya Kusakinisha', icon: <BookOpenIcon className="h-4 w-4" /> },
 ];
 
 export function AgentsPage() {

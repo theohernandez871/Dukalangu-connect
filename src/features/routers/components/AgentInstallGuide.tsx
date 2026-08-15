@@ -1,16 +1,12 @@
-import { ArrowDownTrayIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
+import { CheckCircleIcon, InboxArrowDownIcon } from '@heroicons/react/24/outline';
 
-// Weka hapa link ya kifurushi chako cha Agent (GitHub Releases, Google Drive,
-// au storage nyingine). Ikiwa tupu, kitufe kinaonyesha maelekezo badala ya link.
-const DOWNLOAD_URL = '';
-
-const FLOW = ['Pakua', 'Fungua', 'Weka Token', 'Jaribu', 'Hifadhi', 'Service', 'ONLINE'];
+const FLOW = ['Fungua', 'Weka Token', 'Jaribu', 'Hifadhi', 'Service', 'ONLINE'];
 
 const STEPS = [
   {
     n: 1,
-    title: 'Pakua kifurushi cha Agent',
-    body: 'Bonyeza kitufe cha "Pakua Agent" hapo juu. Utapata faili ya ZIP yenye Agent + maelekezo. Ipeleke kwenye kompyuta ya Windows itakayobaki karibu na MikroTik.',
+    title: 'Pata kifurushi cha Agent',
+    body: 'Msimamizi wa mfumo atakupa kifurushi cha Agent (faili ya ZIP) kupitia WhatsApp, flash disk, au email. Kipeleke kwenye kompyuta ya Windows itakayobaki karibu na MikroTik.',
   },
   {
     n: 2,
@@ -47,27 +43,17 @@ const STEPS = [
 export function AgentInstallGuide() {
   return (
     <div className="space-y-5">
-      {/* Sehemu ya kupakua */}
-      <div className="rounded-2xl border border-primary-200 bg-primary-50/60 p-5 dark:border-primary-900/40 dark:bg-primary-900/10">
-        <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+      {/* Kidokezo cha kupata kifurushi */}
+      <div className="rounded-2xl border border-sky-200 bg-sky-50/60 p-5 dark:border-sky-900/40 dark:bg-sky-900/10">
+        <div className="flex items-start gap-3">
+          <InboxArrowDownIcon className="h-6 w-6 shrink-0 text-sky-600 dark:text-sky-400" />
           <div>
-            <h3 className="font-semibold text-slate-900 dark:text-white">Pakua Agent Setup</h3>
+            <h3 className="font-semibold text-slate-900 dark:text-white">Kupata kifurushi cha Agent</h3>
             <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-              Kifurushi kimoja chenye Agent, Setup Wizard, na maelekezo yote.
+              Kifurushi cha Agent hutolewa na msimamizi wa mfumo (kupitia WhatsApp,
+              flash disk, au email). Ukishakipata, fuata hatua zilizo hapa chini.
             </p>
           </div>
-          {DOWNLOAD_URL ? (
-            <a
-              href={DOWNLOAD_URL}
-              className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-3 font-semibold text-white transition hover:bg-primary-700"
-            >
-              <ArrowDownTrayIcon className="h-5 w-5" /> Pakua Agent
-            </a>
-          ) : (
-            <span className="rounded-xl bg-slate-200 px-4 py-2.5 text-sm text-slate-500 dark:bg-slate-700 dark:text-slate-300">
-              Link ya kupakua itawekwa hivi karibuni
-            </span>
-          )}
         </div>
       </div>
 
