@@ -101,49 +101,16 @@ export async function handleHeartbeat(admin: SupabaseClient, agent: AgentRow, bo
 
 /** sync: upsert a kind of RouterOS data into the dashboard cache. */
 export async function handleSync(admin: SupabaseClient, agent: AgentRow, body: Record<string, unknown>) {
-  const routerId = String(body.routerId ?? '');
-  const kind = String(body.kind ?? '');
-
   await admin.from('router_sync_data').upsert(
     {
-      router_id: routerId,
+      router_id: String(body.routerId ?? ''),
       company_id: agent.company_id,
-      kind,
+      kind: String(body.kind ?? ''),
       payload: body.payload ?? [],
       synced_at: new Date().toISOString(),
     },
     { onConflict: 'router_id,kind' },
   );
-
-  // After a hotspot users sync, auto-mark vouchers whose hotspot user has
-  // consumed time/data as 'used', so reports reflect real usage even when
-  // customers log in directly on the router. Then expire any voucher whose
-  // 14-hour validity window has passed: disable the user on the router and flip
-  // its status. Best-effort: never fail the sync path.
-  if (kind === 'hotspot.users' && routerId) {
-    try {
-      await admin.rpc('mark_used_from_sync', { p_router_id: routerId });
-
-      // Find vouchers past their validity window and disable them on the router.
-      const { data: expired } = await admin.rpc('expired_voucher_codes', { p_router_id: routerId });
-      const codes = (expired ?? []) as { code: string }[];
-      for (const { code } of codes) {
-        await admin.from('router_commands').insert({
-          router_id: routerId,
-          company_id: agent.company_id,
-          requested_by: null,
-          command: 'hotspot.disable_by_name',
-          params: { code },
-        });
-      }
-      // Flip their status to 'expired' (idempotent).
-      if (codes.length > 0) {
-        await admin.rpc('expire_vouchers', { p_router_id: routerId });
-      }
-    } catch (_e) {
-      // Ignore — reporting/expiry enrichment must not break the sync path.
-    }
-  }
 }
 
 /** ack: mark commands done/failed with their results. */

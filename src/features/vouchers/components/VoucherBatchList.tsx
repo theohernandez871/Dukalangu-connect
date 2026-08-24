@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { PrinterIcon, TrashIcon, EyeIcon, SignalIcon } from '@heroicons/react/24/outline';
+import { PrinterIcon, TrashIcon, EyeIcon } from '@heroicons/react/24/outline';
 import { DataTable } from '@/components/data/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { DeleteConfirmDialog } from '@/components/feedback/DeleteConfirmDialog';
-import { PushBatchDialog } from './PushBatchDialog';
 import { useBatches, useVoucherMutations } from '../hooks/useVouchers';
 import { useBatchPdf } from '../hooks/useBatchPdf';
 import { useAuth } from '@/features/auth/hooks/useAuth';
@@ -19,7 +18,6 @@ export function VoucherBatchList({ onView }: { onView: (batchId: string) => void
   const { hasPermission } = useAuth();
   const canManage = hasPermission('voucher:manage');
   const [deleting, setDeleting] = useState<VoucherBatch | null>(null);
-  const [pushing, setPushing] = useState<string | null>(null);
 
   const columns: Column<VoucherBatch>[] = [
     { key: 'package', header: 'Kifurushi', cell: (b) => b.packageName ?? '—' },
@@ -48,11 +46,6 @@ export function VoucherBatchList({ onView }: { onView: (batchId: string) => void
               <PrinterIcon className="h-4 w-4" />
             </Button>
             {canManage && (
-              <Button variant="ghost" size="sm" onClick={() => setPushing(b.id)} aria-label="Peleka MikroTik">
-                <SignalIcon className="h-4 w-4 text-primary-600" />
-              </Button>
-            )}
-            {canManage && (
               <Button variant="ghost" size="sm" onClick={() => setDeleting(b)} aria-label="Futa">
                 <TrashIcon className="h-4 w-4 text-danger-600" />
               </Button>
@@ -69,7 +62,6 @@ export function VoucherBatchList({ onView }: { onView: (batchId: string) => void
         message={`Kufuta batch hii kutafuta vocha zake ${deleting?.count} zote. Endelea?`}
         onConfirm={() => deleting && removeBatch.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
       />
-      <PushBatchDialog batchId={pushing} onClose={() => setPushing(null)} />
     </>
   );
 }

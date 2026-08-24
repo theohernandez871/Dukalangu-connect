@@ -10,19 +10,9 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 import type { HotspotUser } from '../types/routeros';
 import type { Column } from '@/components/data/dataTable.types';
 
-const fmtMb = (u: HotspotUser) => {
-  const total = Number(u['bytes-in'] ?? 0) + Number(u['bytes-out'] ?? 0);
-  if (!Number.isFinite(total) || total <= 0) return '—';
-  const mb = total / (1024 * 1024);
-  if (mb >= 1024) return `${(mb / 1024).toFixed(2)} GB`;
-  return `${mb.toFixed(1)} MB`;
-};
-
 const columns: Column<HotspotUser>[] = [
   { key: 'name', header: 'Jina', cell: (r) => r.name ?? '—' },
   { key: 'profile', header: 'Profile', hideOnMobile: true, cell: (r) => r.profile ?? '—' },
-  { key: 'used', header: 'Data iliyotumika', cell: (r) => fmtMb(r) },
-  { key: 'uptime', header: 'Muda uliotumika', hideOnMobile: true, cell: (r) => r.uptime ?? '—' },
   { key: 'limit', header: 'Kikomo cha muda', hideOnMobile: true, cell: (r) => r['limit-uptime'] ?? '—' },
   {
     key: 'status',

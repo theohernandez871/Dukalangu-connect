@@ -10,15 +10,6 @@ export function usePortal(slug: string) {
   });
 }
 
-export function usePortalPackages(slug: string) {
-  return useQuery({
-    queryKey: ['portal-packages', slug],
-    queryFn: () => portalService.loadPackages(slug),
-    enabled: !!slug,
-    retry: 0,
-  });
-}
-
 export function useRedeemVoucher(slug: string) {
   return useMutation({
     mutationFn: (vars: { code: string; mac?: string | null }) =>

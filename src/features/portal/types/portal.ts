@@ -43,18 +43,6 @@ export interface PortalData {
   announcements: PortalAnnouncement[];
 }
 
-export interface PortalPackage {
-  id: string;
-  name: string;
-  price: number;
-  duration_value: number | null;
-  duration_unit: string | null;
-  data_limit_mb: number | null;
-  speed_down_kbps: number | null;
-  speed_up_kbps: number | null;
-  description: string | null;
-}
-
 export interface RedeemResult {
   ok: boolean;
   error?: string;

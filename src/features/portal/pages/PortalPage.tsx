@@ -1,24 +1,18 @@
 import { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { usePortal, usePortalPackages } from '../hooks/usePortal';
+import { usePortal } from '../hooks/usePortal';
 import { VoucherLogin } from '../components/VoucherLogin';
 import { AdsBanner } from '../components/AdsBanner';
 import { OffersList, AnnouncementsList } from '../components/PortalContent';
 import { PortalSuccess } from '../components/PortalSuccess';
-import { PackageStore } from '../components/PackageStore';
-import { PurchaseDialog } from '../components/PurchaseDialog';
-import type { PortalPackage, RedeemResult } from '../types/portal';
+import type { RedeemResult } from '../types/portal';
 
 const DEFAULT_COLOR = '#059669';
 
 export function PortalPage() {
   const { slug = '' } = useParams();
   const { data, isLoading, isError } = usePortal(slug);
-  const { data: packages } = usePortalPackages(slug);
   const [result, setResult] = useState<RedeemResult | null>(null);
-  const [buyPkg, setBuyPkg] = useState<PortalPackage | null>(null);
-
-  const onBuy = (pkg: PortalPackage) => setBuyPkg(pkg);
 
   if (isLoading) {
     return (
@@ -75,25 +69,13 @@ export function PortalPage() {
           )}
         </div>
 
-        {!result?.ok && (
-          <>
-            <PackageStore
-              packages={packages ?? []}
-              primaryColor={color}
-              busyId={null}
-              onBuy={onBuy}
-            />
-            <OffersList offers={offers} primaryColor={color} />
-          </>
-        )}
+        {!result?.ok && <OffersList offers={offers} primaryColor={color} />}
 
         <div className="mt-auto pt-4 text-center text-xs text-slate-400">
           {settings.support_phone && <p>Msaada: {settings.support_phone}</p>}
           <p className="mt-1">Inaendeshwa na {settings.brand_name ?? 'Hotspot Billing'}</p>
         </div>
       </div>
-
-      <PurchaseDialog slug={slug} pkg={buyPkg} primaryColor={color} onClose={() => setBuyPkg(null)} />
     </div>
   );
 }

@@ -17,7 +17,6 @@ interface PackageRow {
   speed_up_kbps: number | null;
   time_window: TimeWindow | null;
   router_profile: string | null;
-  validity_days: number | null;
   is_active: boolean;
   sort_order: number;
   created_at: string;
@@ -43,7 +42,6 @@ function mapPackage(row: PackageRow): Package {
     speedUpKbps: row.speed_up_kbps,
     timeWindow: row.time_window,
     routerProfile: row.router_profile,
-    validityDays: row.validity_days,
     isActive: row.is_active,
     sortOrder: row.sort_order,
     createdAt: row.created_at,
@@ -69,28 +67,6 @@ export const packageService = {
 
   async setActive(id: string, isActive: boolean): Promise<void> {
     const { error } = await packageRepository.setActive(id, isActive);
-    if (error) throw error;
-  },
-
-  /** Clone an existing package into a new one with "(nakala)" appended. */
-  async duplicate(companyId: string, pkg: Package): Promise<void> {
-    const input: PackageInput = {
-      type: pkg.type,
-      name: `${pkg.name} (nakala)`,
-      description: pkg.description,
-      price: pkg.price,
-      branchId: pkg.branchId,
-      durationValue: pkg.durationValue,
-      durationUnit: pkg.durationUnit,
-      dataLimitMb: pkg.dataLimitMb,
-      speedDownKbps: pkg.speedDownKbps,
-      speedUpKbps: pkg.speedUpKbps,
-      timeWindow: pkg.timeWindow,
-      routerProfile: pkg.routerProfile,
-      validityDays: pkg.validityDays,
-      isActive: pkg.isActive,
-    };
-    const { error } = await packageRepository.create(companyId, input);
     if (error) throw error;
   },
 

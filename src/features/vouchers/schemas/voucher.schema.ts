@@ -8,8 +8,6 @@ export const generateSchema = z.object({
   notes: z.string().max(200).optional(),
   branchId: z.string().optional(),
   validDays: z.number().int().positive().optional().or(z.nan().transform(() => undefined)),
-  routerId: z.string().optional(),
-  routerProfile: z.string().max(64).optional(),
 });
 
 export type GenerateFormInput = z.infer<typeof generateSchema>;

@@ -29,8 +29,6 @@ export const ROUTES = {
 
   // Phase 7 — Vouchers
   vouchers: '/vouchers',
-  quickSell: '/quick-sell',
-  reports: '/reports',
 
   // Phase 8B — Customer Portal (public)
   portal: '/portal/:slug',

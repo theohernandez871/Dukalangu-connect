@@ -36,14 +36,10 @@ export function useVoucherMutations() {
     mutationFn: (input: GenerateVouchersInput) => voucherService.generate(input),
     onSuccess: invalidate,
   });
-  const quickSell = useMutation({
-    mutationFn: (input: GenerateVouchersInput) => voucherService.quickSell(input),
-    onSuccess: invalidate,
-  });
   const removeBatch = useMutation({
     mutationFn: (id: string) => voucherService.removeBatch(id),
     onSuccess: invalidate,
   });
 
-  return { generate, quickSell, removeBatch };
+  return { generate, removeBatch };
 }

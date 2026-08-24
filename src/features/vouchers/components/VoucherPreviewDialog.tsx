@@ -1,10 +1,7 @@
 import { useEffect, useState } from 'react';
-import { PrinterIcon } from '@heroicons/react/24/outline';
 import { Dialog } from '@/components/ui/Dialog';
-import { Button } from '@/components/ui/Button';
 import { CopyButton } from '@/components/ui/CopyButton';
-import { useVoucherTicket } from '../hooks/useVoucherTicket';
-import { qrDataUrl, formatCode } from '../utils/codes';
+import { qrDataUrl, barcodeDataUrl, formatCode } from '../utils/codes';
 import type { Voucher } from '../types/voucher';
 
 interface VoucherPreviewDialogProps {
@@ -12,73 +9,35 @@ interface VoucherPreviewDialogProps {
   onClose: () => void;
 }
 
-/** Row of label + value with a copy button. */
-function CredRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
-      <span className="text-sm text-slate-500">{label}</span>
-      <div className="flex items-center gap-2">
-        <span className="font-mono font-semibold text-slate-900 dark:text-white">{value}</span>
-        <CopyButton value={value} />
-      </div>
-    </div>
-  );
-}
-
 export function VoucherPreviewDialog({ voucher, onClose }: VoucherPreviewDialogProps) {
   const [qr, setQr] = useState<string>('');
-  const { printTicket, printing } = useVoucherTicket();
+  const [barcode, setBarcode] = useState<string>('');
 
-  // Username and password both equal the voucher code (hotspot user created on
-  // the router with name=code, password=code). The QR encodes both so a phone
-  // scan reveals the full login, not just the code.
   useEffect(() => {
     if (!voucher) return;
-    const payload = `Username: ${voucher.code}\nPassword: ${voucher.code}`;
-    qrDataUrl(payload).then(setQr);
+    qrDataUrl(voucher.code).then(setQr);
+    try {
+      setBarcode(barcodeDataUrl(voucher.code));
+    } catch {
+      setBarcode('');
+    }
   }, [voucher]);
-
-  const expire = voucher?.expiresAt
-    ? new Date(voucher.expiresAt).toLocaleDateString('sw-TZ', { year: 'numeric', month: 'short', day: 'numeric' })
-    : null;
 
   return (
     <Dialog open={!!voucher} onClose={onClose} title="Vocha" size="sm">
       {voucher && (
-        <div className="flex flex-col items-center gap-4">
+        <div className="flex flex-col items-center gap-4 text-center">
           {qr && <img src={qr} alt="QR" className="h-40 w-40" />}
-
-          <p className="font-mono text-2xl font-bold tracking-wider text-slate-900 dark:text-white">
-            {formatCode(voucher.code)}
-          </p>
-
-          <div className="w-full space-y-2">
-            <CredRow label="Username" value={voucher.code} />
-            <CredRow label="Password" value={voucher.code} />
-            {voucher.packageName && <CredRow label="Profile" value={voucher.packageName} />}
-            {expire && (
-              <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-800/50">
-                <span className="text-sm text-slate-500">Muda wa kuisha</span>
-                <span className="font-medium text-slate-900 dark:text-white">{expire}</span>
-              </div>
-            )}
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xl font-bold tracking-wider text-slate-900 dark:text-white">
+              {formatCode(voucher.code)}
+            </span>
+            <CopyButton value={voucher.code} />
           </div>
-
-          <div className="flex w-full flex-wrap gap-2">
-            <Button variant="secondary" size="sm" className="flex-1" isLoading={printing} onClick={() => voucher && printTicket(voucher, '58mm')}>
-              <PrinterIcon className="h-4 w-4" /> 58mm
-            </Button>
-            <Button variant="secondary" size="sm" className="flex-1" isLoading={printing} onClick={() => voucher && printTicket(voucher, '80mm')}>
-              <PrinterIcon className="h-4 w-4" /> 80mm
-            </Button>
-            <Button variant="secondary" size="sm" className="flex-1" isLoading={printing} onClick={() => voucher && printTicket(voucher, 'a4')}>
-              <PrinterIcon className="h-4 w-4" /> A4
-            </Button>
-          </div>
-
-          <p className="text-xs text-slate-400">
-            Ingiza Username na Password kwenye ukurasa wa hotspot ili kuunganisha.
-          </p>
+          {barcode && <img src={barcode} alt="Barcode" className="h-12" />}
+          {voucher.packageName && (
+            <p className="text-sm text-slate-500">{voucher.packageName}</p>
+          )}
         </div>
       )}
     </Dialog>

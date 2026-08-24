@@ -37,7 +37,6 @@ export interface Package {
   speedUpKbps: number | null;
   timeWindow: TimeWindow | null;
   routerProfile: string | null;
-  validityDays: number | null;
   isActive: boolean;
   sortOrder: number;
   createdAt: string;
@@ -56,6 +55,5 @@ export interface PackageInput {
   speedUpKbps?: number | null;
   timeWindow?: TimeWindow | null;
   routerProfile?: string | null;
-  validityDays?: number | null;
   isActive?: boolean;
 }

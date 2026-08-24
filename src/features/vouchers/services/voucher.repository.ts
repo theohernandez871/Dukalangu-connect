@@ -38,20 +38,6 @@ export const voucherRepository = {
     return supabase.from('vouchers').update({ status }).eq('id', id);
   },
 
-  /** Codes only, for pushing a batch to the router as hotspot users. */
-  listVouchersByBatch(batchId: string) {
-    return supabase.from('vouchers').select('code').eq('batch_id', batchId).limit(5000);
-  },
-
-  /** Full voucher rows for a batch (for Quick Sell display / printing). */
-  fullVouchersByBatch(batchId: string) {
-    return supabase
-      .from('vouchers')
-      .select('*, package:package_id(name)')
-      .eq('batch_id', batchId)
-      .order('created_at', { ascending: false });
-  },
-
   removeBatch(id: string) {
     return supabase.from('voucher_batches').delete().eq('id', id);
   },

@@ -5,7 +5,6 @@
 
 import { RouterConnection } from '../router-api/connection.js';
 import { READ_COMMANDS, isReadCommand } from '../router-api/commands.js';
-import { diagnoseHotspot } from './diagnose.js';
 import { createLogger } from '../logging/logger.js';
 
 const log = createLogger('command-handler');
@@ -35,8 +34,6 @@ const MUTATING_COMMANDS = new Set([
   'hotspot.delete_user',
   'hotspot.enable_user',
   'hotspot.disable_user',
-  'hotspot.disable_by_name',
-  'hotspot.extend_user',
   'hotspot.create_voucher',
   'hotspot.create_profile',
   'hotspot.update_profile',
@@ -62,130 +59,43 @@ async function execute(conn: RouterConnection, cmd: Command): Promise<unknown> {
 
   switch (cmd.command) {
     case 'hotspot.kick':
-      return conn.runStrict('/ip/hotspot/active/remove', [`=.id=${a.id}`]);
+      return conn.run('/ip/hotspot/active/remove', [`=.id=${a.id}`]);
 
     case 'pppoe.disconnect':
-      return conn.runStrict('/ppp/active/remove', [`=.id=${a.id}`]);
+      return conn.run('/ppp/active/remove', [`=.id=${a.id}`]);
 
     case 'hotspot.create_user':
-      return conn.runStrict('/ip/hotspot/user/add', [
+      return conn.run('/ip/hotspot/user/add', [
         `=name=${a.name}`,
         `=password=${a.password ?? a.name}`,
         `=profile=${a.profile ?? 'default'}`,
       ]);
 
     case 'hotspot.delete_user':
-      return conn.runStrict('/ip/hotspot/user/remove', [`=.id=${a.id}`]);
+      return conn.run('/ip/hotspot/user/remove', [`=.id=${a.id}`]);
 
     case 'hotspot.enable_user':
-      return conn.runStrict('/ip/hotspot/user/enable', [`=.id=${a.id}`]);
-
-    // Diagnostic: read real hotspot config + create a test user, so we can tell
-    // whether a login failure is credentials or server configuration.
-    case 'hotspot.diagnose':
-      return diagnoseHotspot(conn);
+      return conn.run('/ip/hotspot/user/enable', [`=.id=${a.id}`]);
 
     case 'hotspot.disable_user':
-      return conn.runStrict('/ip/hotspot/user/disable', [`=.id=${a.id}`]);
-
-    // Disable a hotspot user by NAME (voucher code). Used for auto-expiry, where
-    // we know the code but not the RouterOS .id. Resolves the id first, then
-    // disables. Also removes any active session so the customer is dropped.
-    case 'hotspot.disable_by_name': {
-      const found = await conn.run('/ip/hotspot/user/print', [`?name=${a.code}`]);
-      const id = Array.isArray(found) && found[0] ? found[0]['.id'] : undefined;
-      if (!id) {
-        // Nothing to disable (user already gone) — treat as success.
-        return [{ disabled: 'not-found', code: a.code }];
-      }
-      await conn.runStrict('/ip/hotspot/user/disable', [`=.id=${id}`]);
-      // Drop any live session for this user.
-      const active = await conn.run('/ip/hotspot/active/print', [`?user=${a.code}`]);
-      if (Array.isArray(active) && active[0]?.['.id']) {
-        await conn.run('/ip/hotspot/active/remove', [`=.id=${active[0]['.id']}`]);
-      }
-      return [{ disabled: id, code: a.code }];
-    }
-
-    // Extend a user's allowed time by setting a new limit-uptime (e.g. "2h",
-    // "1d30m"). Accepts either the user's .id directly, or a username to resolve
-    // (active sessions expose the username, not the user record id).
-    case 'hotspot.extend_user': {
-      let id = a.id as string | undefined;
-      if (!id && a.user) {
-        const found = await conn.runStrict('/ip/hotspot/user/print', [`?name=${a.user}`]);
-        id = Array.isArray(found) && found[0] ? found[0]['.id'] : undefined;
-        if (!id) throw new Error(`Mtumiaji "${a.user}" hakupatikana kwenye router.`);
-      }
-      if (!id) throw new Error('Extend inahitaji id au user.');
-      return conn.runStrict('/ip/hotspot/user/set', [`=.id=${id}`, `=limit-uptime=${a.limitUptime}`]);
-    }
+      return conn.run('/ip/hotspot/user/disable', [`=.id=${a.id}`]);
 
     // A voucher is a hotspot user with a limited-uptime/quota profile. Create
-    // the user, then read it back to PROVE it exists on the router (or surface
-    // the real reason it doesn't). Both steps are logged.
-    case 'hotspot.create_voucher': {
-      const profileName = a.profile ?? 'default';
-
-      // Guard: RouterOS wants the profile NAME (e.g. "default"), not a database
-      // UUID. Verify the profile exists on the router first, so we fail with a
-      // clear message instead of the opaque "input does not match any value".
-      const profiles = await conn.runStrict('/ip/hotspot/user/profile/print');
-      const names = (Array.isArray(profiles) ? profiles : []).map((p) => p.name).filter(Boolean);
-      if (!names.includes(profileName)) {
-        throw new Error(
-          `Profile "${profileName}" haipo kwenye router. Profiles zilizopo: ${names.join(', ') || '(hakuna)'}. ` +
-            `Tumia JINA la profile (mfano "default"), si UUID ya database.`,
-        );
-      }
-
-      const addParams = [
+    // the user; the profile is expected to exist (created via create_profile).
+    case 'hotspot.create_voucher':
+      return conn.run('/ip/hotspot/user/add', [
         `=name=${a.code}`,
         `=password=${a.code}`,
-        `=profile=${profileName}`,
+        `=profile=${a.profile ?? 'default'}`,
         ...(a.limitUptime ? [`=limit-uptime=${a.limitUptime}`] : []),
         ...(a.comment ? [`=comment=${a.comment}`] : []),
-      ];
-      log.info(`create_voucher: /ip/hotspot/user/add ${JSON.stringify(addParams)}`);
-      const addResult = await conn.runStrict('/ip/hotspot/user/add', addParams);
-      log.info(`create_voucher: add response ${JSON.stringify(addResult)}`);
-
-      // Read back by name to confirm the user is really on the router, and log
-      // ALL fields so we can verify password/profile/disabled/server match.
-      const check = await conn.runStrict('/ip/hotspot/user/print', [
-        '=detail=',
-        `?name=${a.code}`,
       ]);
-      if (!Array.isArray(check) || check.length === 0) {
-        throw new Error(`User "${a.code}" haikupatikana baada ya add — RouterOS haikuiunda.`);
-      }
-      const u = check[0];
-      log.info(
-        `create_voucher: THIBITISHO — user "${a.code}": ` +
-          `name=${u.name}, password=${u.password ?? '(haisomeki)'}, profile=${u.profile ?? '(none)'}, ` +
-          `disabled=${u.disabled ?? '?'}, server=${u.server ?? 'all'}, .id=${u['.id']}`,
-      );
-
-      // Diagnostic: report hotspot server health. An INVALID server means NO
-      // user can log in regardless of credentials — this is the usual cause of
-      // "invalid username or password" when the user clearly exists.
-      const servers = await conn.run('/ip/hotspot/print', ['=detail=']);
-      for (const s of servers) {
-        const invalid = s.invalid === 'true';
-        log.info(
-          `create_voucher: hotspot server "${s.name}" -> interface=${s.interface ?? '?'}, ` +
-            `profile=${s.profile ?? '?'}, disabled=${s.disabled ?? '?'}, INVALID=${invalid}` +
-            (invalid ? ' ⚠️ SERVER INVALID — hakuna user atakayeweza kuingia!' : ''),
-        );
-      }
-      return check;
-    }
 
     case 'hotspot.create_profile':
-      return conn.runStrict('/ip/hotspot/user/profile/add', profileParams(a));
+      return conn.run('/ip/hotspot/user/profile/add', profileParams(a));
 
     case 'hotspot.update_profile':
-      return conn.runStrict('/ip/hotspot/user/profile/set', [`=.id=${a.id}`, ...profileParams(a)]);
+      return conn.run('/ip/hotspot/user/profile/set', [`=.id=${a.id}`, ...profileParams(a)]);
 
     default:
       throw new Error(`Command haijulikani: ${cmd.command}`);
@@ -202,24 +112,12 @@ function profileParams(a: Record<string, string>): string[] {
 
 export async function handleCommand(conn: RouterConnection, cmd: Command): Promise<CommandResult> {
   const start = Date.now();
-  const mutating = isMutating(cmd.command);
-  if (mutating) {
-    // Log the full request for write commands so we can trace what was sent.
-    log.info(`REQUEST -> ${cmd.command}`, { id: cmd.id, args: cmd.args ?? {} });
-  }
   try {
     const data = await execute(conn, cmd);
-    const ms = Date.now() - start;
-    if (mutating) {
-      // RouterOS /add returns the new .id (=ret=...); log it as proof of write.
-      const created = Array.isArray(data) && data[0] ? JSON.stringify(data[0]) : 'ok';
-      log.info(`RESPONSE OK <- ${cmd.command} (${ms}ms): ${created}`, { id: cmd.id });
-    } else {
-      log.info(`Amri OK: ${cmd.command} (${ms}ms)`, { id: cmd.id });
-    }
+    log.info(`Amri OK: ${cmd.command} (${Date.now() - start}ms)`, { id: cmd.id });
     return { id: cmd.id, ok: true, data };
   } catch (e) {
-    log.error(`RESPONSE FAIL <- ${cmd.command} (${Date.now() - start}ms): ${String(e)}`, { id: cmd.id, args: cmd.args ?? {} });
+    log.error(`Amri imeshindwa: ${cmd.command} (${Date.now() - start}ms)`, String(e));
     return { id: cmd.id, ok: false, error: String(e) };
   }
 }

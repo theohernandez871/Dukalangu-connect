@@ -15,10 +15,8 @@ export interface HotspotActive {
   address?: string;
   'mac-address'?: string;
   uptime?: string;
-  'session-time-left'?: string;
   'bytes-in'?: string;
   'bytes-out'?: string;
-  'limit-bytes-total'?: string;
 }
 
 export interface HotspotUser {
@@ -26,9 +24,6 @@ export interface HotspotUser {
   name?: string;
   profile?: string;
   'limit-uptime'?: string;
-  uptime?: string;
-  'bytes-in'?: string;
-  'bytes-out'?: string;
   disabled?: string;
 }
 

@@ -1,4 +1,4 @@
-import { PencilSquareIcon, TrashIcon, DocumentDuplicateIcon } from '@heroicons/react/24/outline';
+import { PencilSquareIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { DataTable } from '@/components/data/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Switch } from '@/components/ui/Switch';
@@ -17,11 +17,9 @@ interface PackageListProps {
   onRetry: () => void;
   onEdit: (pkg: Package) => void;
   onDelete: (pkg: Package) => void;
-  onDuplicate?: (pkg: Package) => void;
-  onToggle?: (pkg: Package) => void;
 }
 
-export function PackageList({ packages, isLoading, isError, onRetry, onEdit, onDelete, onDuplicate }: PackageListProps) {
+export function PackageList({ packages, isLoading, isError, onRetry, onEdit, onDelete }: PackageListProps) {
   const { setActive } = usePackageMutations();
   const { hasPermission } = useAuth();
   const canManage = hasPermission('package:manage');
@@ -61,11 +59,6 @@ export function PackageList({ packages, isLoading, isError, onRetry, onEdit, onD
                 <Button variant="ghost" size="sm" onClick={() => onEdit(p)} aria-label="Hariri">
                   <PencilSquareIcon className="h-4 w-4" />
                 </Button>
-                {onDuplicate && (
-                  <Button variant="ghost" size="sm" onClick={() => onDuplicate(p)} aria-label="Nakili">
-                    <DocumentDuplicateIcon className="h-4 w-4" />
-                  </Button>
-                )}
                 <Button variant="ghost" size="sm" onClick={() => onDelete(p)} aria-label="Futa">
                   <TrashIcon className="h-4 w-4 text-danger-600" />
                 </Button>

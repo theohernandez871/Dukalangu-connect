@@ -16,7 +16,6 @@
     "test:empty": "npm run build && node test/test-empty-reply.mjs",
     "test:serial": "npm run build && node test/test-serialization.mjs",
     "test:syncall": "npm run build && node test/test-syncall.mjs",
-    "test:write": "npm run build && node test/test-write.mjs",
     "test:all": "npm run build && node test/test-connection.mjs && node test/test-metrics.mjs && node test/test-resilience.mjs && node test/test-empty-reply.mjs && node test/test-serialization.mjs && node test/test-syncall.mjs",
     "service:install": "node dist/installer/service.js install",
     "service:uninstall": "node dist/installer/service.js uninstall",

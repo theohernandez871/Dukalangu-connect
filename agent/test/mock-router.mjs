@@ -50,7 +50,6 @@ const REPLIES = {
 
 export function startMockRouter(port = 8728) {
   const server = net.createServer((socket) => {
-    const addedUsers = [];
     const send = (words) => socket.write(encodeSentence(words));
     const decode = makeDecoder((sentence) => {
       const cmd = sentence[0];
@@ -60,25 +59,6 @@ export function startMockRouter(port = 8728) {
       const withTag = (words) => (tagWord ? [...words, tagWord] : words);
 
       if (cmd === '/login') {
-        send(withTag(['!done']));
-      } else if (cmd === '/ip/hotspot/user/profile/print') {
-        // The router ships a "default" profile; return it so voucher creation
-        // (which validates the profile name) can proceed.
-        send(withTag(['!re', '=.id=*0', '=name=default']));
-        send(withTag(['!done']));
-      } else if (cmd === '/ip/hotspot/user/add') {
-        // Record the added user so a follow-up print can return it.
-        const nameArg = sentence.find((w) => w.startsWith('=name='));
-        if (nameArg) addedUsers.push(nameArg.slice('=name='.length));
-        send(withTag(['!done', '=ret=*1A']));
-      } else if (cmd === '/ip/hotspot/user/print') {
-        // Support read-back by name (?name=CODE) used to verify creation.
-        const q = sentence.find((w) => w.startsWith('?name='));
-        const wanted = q ? q.slice('?name='.length) : null;
-        const list = wanted ? addedUsers.filter((n) => n === wanted) : addedUsers;
-        for (let i = 0; i < list.length; i++) {
-          send(withTag(['!re', `=.id=*${i + 1}`, `=name=${list[i]}`]));
-        }
         send(withTag(['!done']));
       } else if (REPLIES[cmd] !== undefined) {
         const data = REPLIES[cmd];
