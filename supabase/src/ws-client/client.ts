@@ -5,6 +5,7 @@
 import { createLogger } from '../logging/logger.js';
 import type { AgentConfig } from '../security/config.js';
 import type { RouterMetrics } from '../sync-engine/collect.js';
+import { functionUrl } from '../security/urlNormalize.js';
 import type { Command, CommandResult } from '../command-handler/handler.js';
 
 const log = createLogger('ws-client');
@@ -26,7 +27,7 @@ export class ServerClient {
   constructor(private readonly cfg: AgentConfig) {}
 
   private url(fn: string): string {
-    return `${this.cfg.supabaseUrl}/functions/v1/${fn}`;
+    return functionUrl(this.cfg.supabaseUrl, fn);
   }
 
   private headers(): Record<string, string> {

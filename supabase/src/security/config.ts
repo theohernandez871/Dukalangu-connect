@@ -4,6 +4,8 @@
 
 import { existsSync } from 'node:fs';
 import { loadSecure, saveSecure } from './secureStore.js';
+import { loadWizardConfig } from './wizardConfig.js';
+import { normalizeSupabaseUrl } from './urlNormalize.js';
 
 export interface AgentConfig {
   supabaseUrl: string;
@@ -43,6 +45,22 @@ function parseIntEnv(name: string, fallback: number): number {
 }
 
 export async function loadConfig(): Promise<AgentConfig> {
+  // Prefer the Setup Wizard config (encrypted store). Fall back to env for
+  // developer setups / backwards compatibility.
+  const wiz = await loadWizardConfig();
+  if (wiz.configured && wiz.agentToken && wiz.supabaseUrl) {
+    const supabaseUrl = normalizeSupabaseUrl(wiz.supabaseUrl).url;
+    return {
+      supabaseUrl,
+      supabaseAnonKey: wiz.supabaseAnonKey ?? '',
+      agentToken: wiz.agentToken,
+      pollInterval: parseIntEnv('POLL_INTERVAL', 3000),
+      heartbeat: parseIntEnv('HEARTBEAT_INTERVAL', 30000),
+      apiTimeout: parseIntEnv('API_TIMEOUT', 8000),
+      logLevel: (process.env.LOG_LEVEL as AgentConfig['logLevel']) ?? 'info',
+    };
+  }
+
   // AGENT_TOKEN may come from env (first run) or the encrypted store (later).
   const vault = await loadSecure();
   const envToken = process.env.AGENT_TOKEN?.trim();
@@ -56,9 +74,9 @@ export async function loadConfig(): Promise<AgentConfig> {
     );
   }
 
-  const supabaseUrl = env.SUPABASE_URL.replace(/\/$/, '');
-  if (!/^https?:\/\//.test(supabaseUrl)) {
-    throw new Error(`SUPABASE_URL si sahihi: "${supabaseUrl}". Inapaswa kuanza na https://`);
+  const supabaseUrl = normalizeSupabaseUrl(env.SUPABASE_URL).url;
+  if (!/^https:\/\/.+/.test(supabaseUrl)) {
+    throw new Error(`SUPABASE_URL si sahihi: "${env.SUPABASE_URL}". Inapaswa kuwa kama https://PROJECT.supabase.co`);
   }
 
   // Persist the token encrypted so future runs do not need it in env.

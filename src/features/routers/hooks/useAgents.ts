@@ -71,27 +71,16 @@ export function useRouterCommand() {
         }
       }
 
-      // Timed out. Give a clear, actionable reason based on what happened.
+      // Timed out. Distinguish "no agent" from "agent stuck".
       const timed = await commandService.get(id).catch(() => null);
-      if (timed && timed.status === 'pending') {
+      if (timed && !everRunning && timed.status === 'pending') {
         // Command never moved past 'pending' => nothing polled it.
         const noAgentMsg =
           agentCount === 0
-            ? 'Hakuna agent iliyosajiliwa kwa router hii. Nenda kichupo cha "Agents" → "Tengeneza agent", kisha endesha agent kwenye kompyuta iliyo karibu na MikroTik.'
-            : agentCount < 0
-              ? 'Imeshindwa kukagua agents. Angalia muunganisho wako wa intaneti kisha jaribu tena.'
-              : 'Agent imesajiliwa lakini haijachukua amri. Hakikisha programu ya agent INAENDESHWA (si tu imewekwa) kwenye kifaa cha LAN, na kwamba imeunganishwa na intaneti.';
+            ? 'Hakuna agent iliyosajiliwa kwa router hii. Tengeneza agent na uiendeshe.'
+            : 'Amri haikuchukuliwa na agent yoyote. Hakikisha programu ya agent INAENDESHWA kwenye kifaa cha LAN (si tu imewekwa).';
         setResult({ ...timed, status: 'timeout', error: noAgentMsg });
         console.warn('[test] no agent picked up the command');
-        return timed;
-      }
-      if (timed && everRunning && timed.status !== 'done') {
-        // Agent picked it up but didn't finish in time.
-        setResult({
-          ...timed,
-          status: 'timeout',
-          error: 'Agent ilianza kutekeleza amri lakini haikumaliza kwa wakati. Angalia kama MikroTik inafikika (Test-NetConnection port 8728) na kwamba agent bado inaendesha.',
-        });
         return timed;
       }
       setResult(timed);

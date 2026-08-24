@@ -4,6 +4,7 @@
 import { config as loadEnv } from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // dist/index.js -> project root is one level up from dist/.
@@ -16,6 +17,8 @@ import { Orchestrator } from './agent-core/Orchestrator.js';
 import { startUpdater } from './updater/updater.js';
 import { createLogger, setLogLevel } from './logging/logger.js';
 import { applyRouterOsCompatPatch } from './router-api/ros-compat.js';
+import { ensureConfigured } from './setup/launcher.js';
+import { isConfigured as isConfiguredCheck } from './security/wizardConfig.js';
 
 // Patch node-routeros for RouterOS 7.20+ (!empty reply) before any connection.
 applyRouterOsCompatPatch();
@@ -24,6 +27,36 @@ const log = createLogger('main');
 const VERSION = '1.0.0';
 
 async function main(): Promise<void> {
+  // Detect non-interactive (Windows Service) mode: no TTY attached.
+  const isService = !process.stdout.isTTY && !process.argv.includes('--setup');
+
+  // Setup Wizard: if this is a fresh install (or --setup passed), open the
+  // browser-based wizard and wait. The customer never edits .env by hand.
+  const forceSetup = process.argv.includes('--setup');
+  const configured = await isConfiguredCheck();
+
+  if (!configured) {
+    if (isService) {
+      // A service cannot open a browser. Log a clear, actionable error and
+      // exit non-zero so the failure is visible instead of hanging silently.
+      log.error(
+        'Agent haijasanidiwa. Endesha "npm run setup" kama mtumiaji (si service) ' +
+          'kuweka token + MikroTik, KISHA anzisha service. Config husomwa kutoka ' +
+          '.agent-data karibu na programu.',
+      );
+      process.exit(1);
+    }
+    // Interactive: open the wizard and wait.
+    const ready = await ensureConfigured(forceSetup);
+    if (!ready) {
+      log.info('Agent inasubiri usanidi. Fungua browser kukamilisha, kisha anzisha upya agent.');
+      return;
+    }
+  } else if (forceSetup) {
+    await ensureConfigured(true);
+    return;
+  }
+
   const cfg = await loadConfig();
   setLogLevel(cfg.logLevel);
   log.info('Hotspot Billing — Enterprise Agent', {
@@ -78,5 +111,17 @@ async function main(): Promise<void> {
 
 main().catch((e) => {
   log.error('Hitilafu kubwa', String(e));
+  // Also write a crash marker synchronously — under a service, async logs may
+  // not flush before exit. This file is the first place to look on failure.
+  try {
+    const crashDir = resolve(__dirname, '..', 'logs');
+    mkdirSync(crashDir, { recursive: true });
+    writeFileSync(
+      resolve(crashDir, 'startup-error.log'),
+      `${new Date().toISOString()}\n${String(e)}\n${e instanceof Error ? e.stack : ''}\n`,
+    );
+  } catch {
+    // best-effort
+  }
   process.exit(1);
 });

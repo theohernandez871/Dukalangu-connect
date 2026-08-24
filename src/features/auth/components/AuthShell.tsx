@@ -2,7 +2,6 @@ import { motion } from 'framer-motion';
 import { WifiIcon } from '@heroicons/react/24/solid';
 import type { ReactNode } from 'react';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
-import { BackgroundSlideshow } from './BackgroundSlideshow';
 
 interface AuthShellProps {
   title: string;
@@ -14,8 +13,9 @@ interface AuthShellProps {
 export function AuthShell({ title, subtitle, children, footer }: AuthShellProps) {
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-      {/* Full-screen Tanzania background slideshow (crossfade every 6s). */}
-      <BackgroundSlideshow />
+      {/* Decorative gradient blobs */}
+      <div className="pointer-events-none absolute -top-24 -left-24 h-96 w-96 rounded-full bg-primary-400/30 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -right-24 h-96 w-96 rounded-full bg-accent-400/20 blur-3xl" />
 
       <div className="absolute right-4 top-4">
         <ThemeToggle />

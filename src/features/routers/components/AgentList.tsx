@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { PlusIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { PlusIcon, SignalIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { DataTable } from '@/components/data/DataTable';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -11,13 +11,10 @@ import { timeAgo } from '@/utils/currency';
 import type { RouterAgent } from '../types/agent';
 import type { Column } from '@/components/data/dataTable.types';
 
-/** Agent health from last ping: connected (<60s), stale (<10min), or offline. */
-function agentHealth(lastPing: string | null): { label: string; tone: 'success' | 'warning' | 'neutral'; dot: string } {
-  if (!lastPing) return { label: 'Haijawahi kuonekana', tone: 'neutral', dot: 'bg-slate-400' };
-  const age = Date.now() - new Date(lastPing).getTime();
-  if (age < 60_000) return { label: 'Hai (online)', tone: 'success', dot: 'bg-emerald-500' };
-  if (age < 600_000) return { label: 'Inakaribia kukatika', tone: 'warning', dot: 'bg-amber-500' };
-  return { label: 'Imekatika (offline)', tone: 'neutral', dot: 'bg-slate-400' };
+/** An agent is "connected" if it pinged in the last 60 seconds. */
+function isConnected(lastPing: string | null): boolean {
+  if (!lastPing) return false;
+  return Date.now() - new Date(lastPing).getTime() < 60_000;
 }
 
 export function AgentList() {
@@ -33,29 +30,22 @@ export function AgentList() {
     {
       key: 'name',
       header: 'Agent',
-      cell: (a) => {
-        const h = agentHealth(a.lastPing);
-        return (
-          <div className="flex items-center gap-2">
-            <span className={`h-2.5 w-2.5 rounded-full ${h.dot}`} aria-hidden />
-            <span className="font-medium">{a.name}</span>
-          </div>
-        );
-      },
+      cell: (a) => (
+        <div className="flex items-center gap-2">
+          <SignalIcon className="h-4 w-4 text-slate-400" />
+          <span className="font-medium">{a.name}</span>
+        </div>
+      ),
     },
     {
       key: 'conn',
-      header: 'Hali',
-      cell: (a) => {
-        const h = agentHealth(a.lastPing);
-        return <Badge tone={h.tone}>{h.label}</Badge>;
-      },
-    },
-    {
-      key: 'router',
-      header: 'Router',
-      hideOnMobile: true,
-      cell: (a) => <span className="text-slate-400">{a.routerId ? 'Imeunganishwa' : 'Kampuni nzima'}</span>,
+      header: 'Muunganisho',
+      cell: (a) =>
+        isConnected(a.lastPing) ? (
+          <Badge tone="success">Imeunganishwa</Badge>
+        ) : (
+          <Badge tone="neutral">Imekatika</Badge>
+        ),
     },
     {
       key: 'ping',
@@ -83,8 +73,8 @@ export function AgentList() {
         isLoading={isLoading}
         isError={isError}
         onRetry={() => refetch()}
-        emptyTitle="Hakuna agent bado"
-        emptyDescription="Bonyeza 'Tengeneza agent' kuunda agent, kisha nakili token yake kwenda kwenye computer inayoendesha agent karibu na MikroTik."
+        emptyTitle="Hakuna agent"
+        emptyDescription="Tengeneza agent ili kuunganisha router zako."
         actions={
           canManage
             ? (a) => (

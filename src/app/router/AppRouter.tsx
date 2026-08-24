@@ -27,10 +27,6 @@ const PackagesPage = lazy(() => import('../../features/packages/pages/PackagesPa
 const VouchersPage = lazy(() => import('../../features/vouchers/pages/VouchersPage').then((m) => ({ default: m.VouchersPage })));
 const QuickSellPage = lazy(() => import('../../features/vouchers/pages/QuickSellPage').then((m) => ({ default: m.QuickSellPage })));
 const ReportsPage = lazy(() => import('../../features/reports/pages/ReportsPage').then((m) => ({ default: m.ReportsPage })));
-const PaymentsPage = lazy(() => import('../../features/payments/pages/PaymentsPage').then((m) => ({ default: m.PaymentsPage })));
-const NotificationsPage = lazy(() => import('../../features/notifications/pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
-const PayoutsPage = lazy(() => import('../../features/payouts/pages/PayoutsPage').then((m) => ({ default: m.PayoutsPage })));
-const AgentsPage = lazy(() => import('../../features/routers/pages/AgentsPage').then((m) => ({ default: m.AgentsPage })));
 const PortalPage = lazy(() => import('../../features/portal/pages/PortalPage').then((m) => ({ default: m.PortalPage })));
 const PortalAdminPage = lazy(() => import('../../features/portal/pages/PortalAdminPage').then((m) => ({ default: m.PortalAdminPage })));
 
@@ -72,10 +68,6 @@ export function AppRouter() {
               <Route path={ROUTES.vouchers} element={<VouchersPage />} />
               <Route path={ROUTES.quickSell} element={<QuickSellPage />} />
               <Route path={ROUTES.reports} element={<ReportsPage />} />
-              <Route path={ROUTES.payments} element={<PaymentsPage />} />
-              <Route path={ROUTES.notifications} element={<NotificationsPage />} />
-              <Route path={ROUTES.payouts} element={<PayoutsPage />} />
-              <Route path={ROUTES.agents} element={<AgentsPage />} />
               <Route path={ROUTES.portalAdmin} element={<PortalAdminPage />} />
             </Route>
           </Route>
