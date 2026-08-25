@@ -1,44 +1,54 @@
 {
-  "name": "hotspot-billing",
-  "private": true,
-  "version": "0.0.0",
+  "name": "hotspot-billing-agent",
+  "version": "1.0.0",
+  "description": "Enterprise on-site agent connecting MikroTik RouterOS to the Hotspot Billing System (multi-router, auto-reconnect, heartbeat, encrypted token, auto-update).",
   "type": "module",
+  "main": "dist/index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "preview": "vite preview"
+    "build": "tsc",
+    "prestart": "node -e \"require('fs').existsSync('dist/index.js')||(console.error('\\n[!] dist/index.js haipo. Endesha: npm run build\\n'),process.exit(1))\"",
+    "start": "node dist/index.js",
+    "setup": "node dist/index.js --setup",
+    "diagnose": "node diagnose.mjs",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test:connection": "npm run build && node test/test-connection.mjs",
+    "test:metrics": "npm run build && node test/test-metrics.mjs",
+    "test:resilience": "npm run build && node test/test-resilience.mjs",
+    "test:empty": "npm run build && node test/test-empty-reply.mjs",
+    "test:serial": "npm run build && node test/test-serialization.mjs",
+    "test:syncall": "npm run build && node test/test-syncall.mjs",
+    "test:write": "npm run build && node test/test-write.mjs",
+    "test:all": "npm run build && node test/test-connection.mjs && node test/test-metrics.mjs && node test/test-resilience.mjs && node test/test-empty-reply.mjs && node test/test-serialization.mjs && node test/test-syncall.mjs",
+    "service:install": "node dist/installer/service.js install",
+    "service:uninstall": "node dist/installer/service.js uninstall",
+    "build:exe": "npm run build && pkg . --targets node18-win-x64 --output build/hotspot-agent.exe"
+  },
+  "bin": "dist/index.js",
+  "pkg": {
+    "scripts": "dist/**/*.js",
+    "assets": [
+      "node_modules/node-routeros/**/*"
+    ],
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "build"
   },
   "dependencies": {
-    "@heroicons/react": "^2.2.0",
-    "@hookform/resolvers": "^5.7.1",
-    "@supabase/supabase-js": "^2.112.0",
-    "@tanstack/react-query": "^5.101.4",
-    "apexcharts": "^6.7.0",
-    "clsx": "^2.1.1",
-    "framer-motion": "^12.43.0",
-    "jsbarcode": "^3.12.3",
-    "jspdf": "^4.2.1",
-    "qrcode": "^1.5.4",
-    "react": "^19.2.8",
-    "react-apexcharts": "^2.1.1",
-    "react-dom": "^19.2.8",
-    "react-hook-form": "^7.84.0",
-    "react-router-dom": "^7.18.2",
-    "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3"
+    "dotenv": "^17.4.2",
+    "node-routeros": "^1.6.9"
+  },
+  "optionalDependencies": {
+    "node-windows": "^1.0.0-beta.8"
   },
   "devDependencies": {
-    "@types/node": "^24.13.3",
-    "@types/qrcode": "^1.5.6",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.4",
-    "autoprefixer": "^10.5.4",
-    "oxlint": "^1.75.0",
-    "postcss": "^8.5.25",
-    "tailwindcss": "^3.4.19",
-    "typescript": "~6.0.2",
-    "vite": "^8.2.0"
+    "@types/node": "^22.0.0",
+    "pkg": "^5.8.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

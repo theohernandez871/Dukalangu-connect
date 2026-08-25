@@ -4,17 +4,29 @@
 
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { join } from 'node:path';
-import { hostname, userInfo } from 'node:os';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { hostname } from 'node:os';
 
-const STORE_DIR = process.env.AGENT_DATA_DIR ?? join(process.cwd(), '.agent-data');
+// Config must live at a FIXED location that is identical whether the agent is
+// run interactively (user "THEO") or as a Windows Service (user "SYSTEM").
+// Using process.cwd() breaks under a service because LocalSystem's working
+// directory is C:\Windows\System32, not the agent folder. We therefore anchor
+// the store next to the installed code (dist/../.agent-data), overridable via
+// AGENT_DATA_DIR for advanced setups.
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url)); // dist/security
+const APP_ROOT = join(MODULE_DIR, '..', '..'); // agent/
+const STORE_DIR = process.env.AGENT_DATA_DIR ?? join(APP_ROOT, '.agent-data');
 const STORE_FILE = join(STORE_DIR, 'secure.bin');
 const ALGO = 'aes-256-gcm';
 
-// Machine-bound passphrase: combines a fixed app salt, hostname and username.
-// Not a hardware root of trust, but ensures the file is not portable as-is.
+// Machine-bound passphrase. IMPORTANT: this must NOT depend on the OS username,
+// because config is written by the interactive user but read by the LocalSystem
+// service — a username-based key would fail to decrypt under the service. We
+// bind to the hostname (stable across accounts on the same machine) plus an
+// optional AGENT_SECRET.
 function deriveKey(): Buffer {
-  const material = `hotspot-agent::${hostname()}::${userInfo().username}::${process.env.AGENT_SECRET ?? 'default'}`;
+  const material = `hotspot-agent::${hostname()}::${process.env.AGENT_SECRET ?? 'default'}`;
   return scryptSync(material, 'hotspot-agent-salt', 32);
 }
 

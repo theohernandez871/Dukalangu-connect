@@ -2,9 +2,15 @@
 // Failures here must never crash the agent, so all writes are best-effort.
 
 import { appendFile, mkdir, stat, rename } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const LOG_DIR = process.env.LOG_DIR ?? join(process.cwd(), 'logs');
+// Anchor logs next to the installed code, not process.cwd(): under a Windows
+// Service the working directory is C:\Windows\System32, where writes fail and
+// where nobody would look. dist/logging -> agent/logs.
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url)); // dist/logging
+const APP_ROOT = join(MODULE_DIR, '..', '..'); // agent/
+const LOG_DIR = process.env.LOG_DIR ?? join(APP_ROOT, 'logs');
 const MAX_BYTES = 5 * 1024 * 1024; // 5 MB per file before rotation.
 
 let ready = false;

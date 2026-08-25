@@ -8,13 +8,18 @@
 // node-windows is an optional dependency; it is only required on Windows when
 // installing as a service. Direct `npm start` / PM2 / Docker do not need it.
 
-import { join } from 'node:path';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { createLogger } from '../logging/logger.js';
 
 const log = createLogger('installer');
 
 const SERVICE_NAME = 'HotspotBillingAgent';
-const SCRIPT = join(process.cwd(), 'dist', 'index.js');
+// Anchor the script path to this module's location, not process.cwd(). The
+// installer may be invoked from any directory, and the service itself runs with
+// cwd = C:\Windows\System32, so a cwd-relative path would be wrong.
+const MODULE_DIR = dirname(fileURLToPath(import.meta.url)); // dist/installer
+const SCRIPT = resolve(MODULE_DIR, '..', 'index.js'); // dist/index.js
 
 interface WinService {
   on(event: string, cb: () => void): void;
@@ -46,6 +51,16 @@ async function makeService(): Promise<WinService> {
 }
 
 async function install(): Promise<void> {
+  // Guard: installing a service before the agent is configured guarantees the
+  // service will fail to start (no token/URL). Force setup first.
+  const { isConfigured } = await import('../security/wizardConfig.js');
+  if (!(await isConfigured())) {
+    log.error(
+      'Agent haijasanidiwa bado. Endesha kwanza: npm run setup (weka token + MikroTik), ' +
+        'KISHA endesha install-service tena.',
+    );
+    process.exit(1);
+  }
   const svc = await makeService();
   svc.on('install', () => {
     log.info('Service imesakinishwa. Naiwasha...');
