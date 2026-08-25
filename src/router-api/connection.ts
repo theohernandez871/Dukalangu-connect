@@ -75,11 +75,31 @@ export class RouterConnection {
       this.api = api;
       this.connected = true;
       this.lastError = null;
-      log.info(`Imeunganishwa: ${this.label} (${this.creds.host}:${this.creds.port})`);
+      log.info(`✓ RouterOS imeunganishwa: ${this.label} (${this.creds.host}:${this.creds.port}, user=${this.creds.user})`);
     } catch (e) {
       this.connected = false;
       this.api = null;
-      log.error(`Imeshindwa kuunganisha ${this.label}: ${String(e)}`);
+      const msg = String(e);
+      // Classify the failure so the operator sees a clear, actionable reason
+      // instead of a raw library exception.
+      if (/invalid|login|password|cannot log/i.test(msg)) {
+        this.lastError = 'AUTH';
+        log.error(
+          `✗ ${this.label}: RouterOS imekataa login (username/nywila si sahihi). ` +
+            `User uliojaribu: "${this.creds.user}". Rekebisha dashboard -> Routers -> Hariri ` +
+            `(weka username + nywila sahihi za RouterOS). MikroTik default user ni "admin".`,
+        );
+      } else if (/timed out|ETIMEDOUT|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH/i.test(msg)) {
+        this.lastError = 'UNREACHABLE';
+        log.error(
+          `✗ ${this.label}: MikroTik haifikiki (${this.creds.host}:${this.creds.port}). ` +
+            `Angalia: kompyuta iko LAN moja na MikroTik? API service imewashwa? ` +
+            `Port ${this.creds.port} open? Available From inaruhusu IP ya kompyuta?`,
+        );
+      } else {
+        this.lastError = msg;
+        log.error(`✗ Imeshindwa kuunganisha ${this.label}: ${msg}`);
+      }
       throw e;
     }
   }

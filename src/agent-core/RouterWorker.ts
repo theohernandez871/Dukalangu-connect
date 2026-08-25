@@ -51,7 +51,20 @@ export class RouterWorker {
       this.log.debug(`Heartbeat OK: version=${metrics.version}, cpu=${metrics.cpuLoad}, users=${metrics.connectedUsers}`);
     } catch (e) {
       this.failStreak += 1;
-      this.log.warn(`Heartbeat imeshindwa (mfululizo ${this.failStreak}) — router offline`, String(e));
+      const msg = String(e);
+      // If the failure is bad credentials, hammering RouterOS every few seconds
+      // is pointless (and can lock accounts). Log once clearly and slow down —
+      // the operator must fix the credentials in the dashboard.
+      if (/invalid|login|password|cannot log/i.test(msg)) {
+        if (this.failStreak === 1 || this.failStreak % 20 === 0) {
+          this.log.error(
+            `Login imekataliwa (user="${this.router.username}"). Rekebisha username/nywila ` +
+              `dashboard -> Routers -> Hariri. Sitajaribu haraka hadi credentials zisahihishwe.`,
+          );
+        }
+      } else {
+        this.log.warn(`Heartbeat imeshindwa (mfululizo ${this.failStreak}) — router offline`, msg);
+      }
       // A failed heartbeat leaves the row un-updated; the server marks it
       // offline after a missed-beat timeout. The agent keeps running.
     }
